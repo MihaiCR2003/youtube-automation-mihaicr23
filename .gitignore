@@ -1,0 +1,13 @@
+.env
+__pycache__/
+*.pyc
+output/
+.venv/
+venv/
+*.mp4
+*.mp3
+*.png
+*.jpg
+!assets/**
+token.json
+client_secret*.json
