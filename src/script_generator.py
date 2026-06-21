@@ -15,6 +15,21 @@ _NICHE_DESCRIERE = (
     "amazing curiosities and incredible real-world events"
 )
 
+# Persoana/tonul naratorului - aceeasi "voce" de canal in fiecare video, ca sa nu
+# sune ca fapte seci narate generic (risc de "mass-produced content" pe YouTube).
+_PERSONA = """
+NARRATOR VOICE AND PERSONALITY (apply this to EVERY script):
+- The narrator is mysterious and dramatic, like a storyteller revealing forbidden secrets.
+- Use suspenseful pacing: build tension before reveals, use rhetorical questions
+  ("But what happened next would change everything.").
+- Add the narrator's own reactions/commentary woven naturally into the facts
+  (e.g. "Think about that for a second.", "And here is where it gets disturbing.").
+- Do NOT just list facts neutrally like an encyclopedia entry - frame the story
+  through this narrator's dramatic point of view from the first sentence (the hook)
+  to the last (a memorable closing line, not just trailing off).
+- Never break character with stage directions, labels, or meta-commentary.
+"""
+
 _LUNGIME_DUPA_TIP = {
     "short": "between 130 and 160 words (for a video under 60 seconds)",
     "long": "between 2200 and 2800 words (for a 15-20 minute video)",
@@ -37,7 +52,7 @@ def _construieste_prompt(tip_video: str, idei_de_evitat: list[str], idee_fortata
     return f"""
 You are a viral YouTube content writer for a channel about {_NICHE_DESCRIERE}.
 Write everything in ENGLISH only.
-
+{_PERSONA}
 STRICT RULES:
 - Never write about weather forecasts or mundane daily-life topics.
 {regula_subiect}
