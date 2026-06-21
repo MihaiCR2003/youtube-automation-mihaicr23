@@ -1,0 +1,9 @@
+Pune aici fisiere .mp3 descarcate din YouTube Audio Library
+(studio.youtube.com -> Audio Library -> filtreaza "no attribution required").
+
+Scriptul (src/music.py) alege random un fisier .mp3 din acest folder la
+fiecare video generat. Daca folderul e gol, video-ul se face fara muzica
+de fundal (fallback automat, fara eroare).
+
+Acest fisier .txt e doar un placeholder, ca folderul sa existe in git -
+poate fi sters dupa ce adaugi primele piese .mp3.

@@ -14,6 +14,7 @@ from moviepy.editor import (
 )
 
 from src.images import genereaza_imagine
+from src.music import adauga_muzica_fundal
 from src.subtitles import deseneaza_subtitlu
 
 # Rezolutia finala a video-ului, in functie de tip
@@ -127,9 +128,10 @@ def construieste_video(
         # 2. Genereaza clipurile de subtitrare, sincronizate pe cuvinte
         clipuri_subtitrare = _genereaza_clipuri_subtitrare(cuvinte, latime, inaltime, folder_temp)
 
-        # 3. Combina imaginile + subtitrarile + audio-ul intr-un singur video
+        # 3. Combina imaginile + subtitrarile + audio-ul (voce + muzica de fundal)
+        audio_final = adauga_muzica_fundal(audio)
         video_final = CompositeVideoClip([video_imagini, *clipuri_subtitrare])
-        video_final = video_final.set_audio(audio).set_duration(durata_audio)
+        video_final = video_final.set_audio(audio_final).set_duration(durata_audio)
 
         video_final.write_videofile(
             cale_output,
