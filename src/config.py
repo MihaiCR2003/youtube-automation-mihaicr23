@@ -35,6 +35,10 @@ YOUTUBE_CLIENT_ID = os.environ.get("YOUTUBE_CLIENT_ID", "")
 YOUTUBE_CLIENT_SECRET = os.environ.get("YOUTUBE_CLIENT_SECRET", "")
 YOUTUBE_REFRESH_TOKEN = os.environ.get("YOUTUBE_REFRESH_TOKEN", "")
 
+# Optionala - daca nu e setata, scenele folosesc doar imagini AI (Pollinations),
+# fara mix cu stock footage real (vezi src/stock_footage.py).
+PEXELS_API_KEY = os.environ.get("PEXELS_API_KEY", "")
+
 # Câte zile trebuie să treacă înainte de a permite o idee din aceeași categorie
 ZILE_MINIME_INTRE_SUBIECTE_SIMILARE = 7
 

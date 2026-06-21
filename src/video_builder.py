@@ -3,6 +3,7 @@ Asambleaza video-ul final: imagini AI generate pe baza scenelor din script,
 voiceover-ul deja generat (Etapa 2) si subtitrari sincronizate pe cuvinte.
 """
 import os
+import random
 import re
 import tempfile
 from PIL import Image
@@ -10,12 +11,24 @@ from moviepy.editor import (
     ImageClip,
     AudioFileClip,
     CompositeVideoClip,
+    VideoFileClip,
     concatenate_videoclips,
 )
+from moviepy.video.fx.all import crop, loop
 
 from src.images import genereaza_imagine
 from src.music import adauga_muzica_fundal
+from src.stock_footage import cauta_video_stock
 from src.subtitles import deseneaza_subtitlu
+
+# moviepy 1.0.3 foloseste Image.ANTIALIAS, eliminat in Pillow >= 10.
+# Fara acest shim, .resize() pe clipuri (imagine SAU video) pica cu AttributeError.
+if not hasattr(Image, "ANTIALIAS"):
+    Image.ANTIALIAS = Image.LANCZOS
+
+# Sansa ca o scena sa incerce mai intai un clip video real (Pexels) inainte
+# de a cadea pe o imagine generata AI - adauga variatie vizuala intre scene.
+PROBABILITATE_STOCK_FOOTAGE = 0.5
 
 # Rezolutia finala a video-ului, in functie de tip
 REZOLUTII = {
@@ -71,6 +84,46 @@ def _calculeaza_durate_scene(scene: list[str], durata_audio: float) -> list[floa
     return durate
 
 
+def _adapteaza_la_rezolutie(clip, latime: int, inaltime: int):
+    """Redimensioneaza si decupeaza centrat clipul (imagine sau video) ca sa umple exact (latime, inaltime), fara sa deformeze proportiile."""
+    raport_tinta = latime / inaltime
+    raport_clip = clip.w / clip.h
+    if raport_clip > raport_tinta:
+        clip = clip.resize(height=inaltime)
+    else:
+        clip = clip.resize(width=latime)
+    return crop(clip, width=latime, height=inaltime, x_center=clip.w / 2, y_center=clip.h / 2)
+
+
+def _ajusteaza_durata_clip(clip, durata: float):
+    """Bucleaza clipul video daca e mai scurt decat durata ceruta, sau il taie daca e mai lung."""
+    if clip.duration < durata:
+        clip = loop(clip, duration=durata)
+    else:
+        clip = clip.subclip(0, durata)
+    return clip.set_duration(durata)
+
+
+def _incarca_clip_scena(scena_text: str, durata: float, latime: int, inaltime: int, cale_temp: str):
+    """
+    Incearca mai intai un clip video real (Pexels), cu o sansa de 50%; daca
+    nu gaseste nimic relevant (sau PEXELS_API_KEY nu e setata), cade pe o
+    imagine generata AI (Pollinations.ai). Returneaza un clip cu durata exacta.
+    """
+    if random.random() < PROBABILITATE_STOCK_FOOTAGE:
+        cale_video = cale_temp + ".mp4"
+        if cauta_video_stock(scena_text, cale_video, latime, inaltime):
+            clip = VideoFileClip(cale_video).without_audio()
+            clip = _adapteaza_la_rezolutie(clip, latime, inaltime)
+            return _ajusteaza_durata_clip(clip, durata)
+
+    cale_imagine = cale_temp + ".png"
+    genereaza_imagine(scena_text, cale_imagine, latime=latime, inaltime=inaltime)
+    clip = ImageClip(cale_imagine)
+    clip = _adapteaza_la_rezolutie(clip, latime, inaltime)
+    return clip.set_duration(durata)
+
+
 def _genereaza_clipuri_subtitrare(cuvinte: list[dict], latime: int, inaltime: int, folder_temp: str) -> list:
     """Construieste lista de ImageClip-uri cu textul subtitrarii, sincronizate pe cuvinte."""
     clipuri = []
@@ -110,18 +163,12 @@ def construieste_video(
     durate_scene = _calculeaza_durate_scene(scene, durata_audio)
 
     with tempfile.TemporaryDirectory() as folder_temp:
-        # 1. Genereaza o imagine AI pentru fiecare scena si construieste clipurile video
+        # 1. Pentru fiecare scena, incearca un clip stock video real, altfel genereaza o imagine AI
         clipuri_imagine = []
         for i, (scena_text, durata) in enumerate(zip(scene, durate_scene)):
-            cale_imagine = os.path.join(folder_temp, f"scena_{i}.png")
-            genereaza_imagine(scena_text, cale_imagine, latime=latime, inaltime=inaltime)
-            # Pollinations.ai poate returna imaginea la o dimensiune mai mica decat cea
-            # ceruta (desi respecta proportia) - o redimensionam explicit cu Pillow
-            # (NU cu .resize() din moviepy, care e incompatibil cu Pillow >= 10).
-            with Image.open(cale_imagine) as imagine:
-                imagine.convert("RGB").resize((latime, inaltime), Image.LANCZOS).save(cale_imagine)
-
-            clipuri_imagine.append(ImageClip(cale_imagine).set_duration(durata))
+            cale_temp = os.path.join(folder_temp, f"scena_{i}")
+            clip = _incarca_clip_scena(scena_text, durata, latime, inaltime, cale_temp)
+            clipuri_imagine.append(clip)
 
         video_imagini = concatenate_videoclips(clipuri_imagine, method="compose")
 
