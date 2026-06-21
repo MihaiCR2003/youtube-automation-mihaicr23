@@ -1,0 +1,32 @@
+name: Reminder reautorizare YouTube
+
+# Token-ul de refresh expira la 7 zile (proiect Google in modul "Testing").
+# Trimitem reminder de 2 ori pe saptamana (luni si joi), ca sa fie sub 7 zile
+# intre orice doua reminder-uri si sa nu uitam sa reinnoim la timp.
+on:
+  schedule:
+    - cron: "0 8 * * 1,4"  # luni si joi, 08:00 UTC (~10:00/11:00 Bucuresti)
+  workflow_dispatch: {}
+
+jobs:
+  trimite-reminder:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instaleaza dependintele Python
+        run: pip install -r requirements.txt
+
+      - name: Trimite reminder pe Telegram
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python reminder_reauth.py
