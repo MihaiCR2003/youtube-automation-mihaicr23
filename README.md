@@ -8,9 +8,9 @@ folosind GitHub Actions (cron), Supabase (bază de date) și Telegram (control/n
 Construim sistemul pe etape. Etapele bifate sunt deja funcționale în acest repo.
 
 - [x] **Etapa 1** — Schema Supabase + structura repo
-- [ ] Etapa 2 — Generare text (Gemini) + voce (edge-tts) + imagini (Pollinations.ai)
-- [ ] Etapa 3 — Asamblare video (moviepy) + subtitrări sincronizate
-- [ ] Etapa 4 — Upload automat pe YouTube (OAuth) + thumbnail
+- [x] **Etapa 2** — Generare text (Gemini) + voce (edge-tts) + imagini (Pollinations.ai)
+- [x] **Etapa 3** — Asamblare video (moviepy) + subtitrări sincronizate
+- [x] **Etapa 4** — Upload automat pe YouTube (OAuth) + thumbnail
 - [ ] Etapa 5 — Bot Telegram (`/video [idee]`, notificări) + cron GitHub Actions
 - [ ] Etapa 6 — Configurare secrete pe GitHub + test end-to-end
 
@@ -65,4 +65,32 @@ copy .env.example .env         # apoi completează valorile reale în .env
 
 ---
 
-*Pașii 3-6 (cod complet, upload YouTube, bot Telegram, secrete GitHub) vor fi adăugați în etapele următoare ale acestui README, pe măsură ce le implementăm.*
+## Pasul 4 — Configurare YouTube Data API v3 (upload automat)
+
+1. Mergi pe [console.cloud.google.com](https://console.cloud.google.com/) și autentifică-te cu **contul Google asociat canalului tău de YouTube**.
+2. Creează un proiect nou (ex: `youtube-automation`).
+3. În meniu: **APIs & Services → Library** → caută `YouTube Data API v3` → **Enable**.
+4. **APIs & Services → OAuth consent screen**:
+   - User type: **External**
+   - Completează numele aplicației și email-ul de contact (orice valori, sunt doar pentru tine)
+   - La secțiunea **Test users**, adaugă adresa ta de Gmail (a canalului) — **obligatoriu**, altfel autorizarea va fi blocată
+   - Poți lăsa aplicația în modul **Testing** — e suficient pentru uz personal
+5. **APIs & Services → Credentials → Create Credentials → OAuth client ID**:
+   - Application type: **Desktop app**
+   - Apasă **Create** → vei vedea `Client ID` și `Client Secret` → pune-le în `.env` ca `YOUTUBE_CLIENT_ID` / `YOUTUBE_CLIENT_SECRET`
+6. Local, în terminal, rulează:
+   ```bash
+   python scripts/get_youtube_token.py
+   ```
+   - Se deschide browserul → loghează-te cu contul canalului → confirmă accesul.
+   - Vei vedea un avertisment **"Google hasn't verified this app"** — e normal pentru aplicații proprii în modul Testing. Apasă **Advanced → Go to [app] (unsafe)** și continuă.
+   - În terminal va apărea linia `YOUTUBE_REFRESH_TOKEN=...` → copiaz-o în `.env`.
+
+Module de cod adăugate la această etapă:
+- [`src/youtube_upload.py`](src/youtube_upload.py) — `uploadeaza_video()` (upload public) și `seteaza_thumbnail()`
+- [`src/thumbnail.py`](src/thumbnail.py) — generează coperta pentru video-urile lungi (imagine AI + titlu suprapus)
+- [`scripts/get_youtube_token.py`](scripts/get_youtube_token.py) — rulează-l o singură dată ca să obții refresh token-ul
+
+---
+
+*Pașii 5-6 (bot Telegram, cron GitHub Actions, secrete GitHub) vor fi adăugați în etapele următoare ale acestui README, pe măsură ce le implementăm.*
