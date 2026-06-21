@@ -12,7 +12,10 @@ from moviepy.audio.fx.all import audio_loop, volumex
 _FOLDER_MUZICA = Path(__file__).resolve().parent.parent / "assets" / "music"
 
 # Cat de tare e muzica fata de voce - doar fundal subtil, vocea trebuie sa domine
-VOLUM_MUZICA = 0.12
+VOLUM_MUZICA = 0.06
+
+# Vocea e amplificata usor, ca sa fie clar dominanta peste muzica de fundal
+VOLUM_VOCE = 1.15
 
 
 def adauga_muzica_fundal(audio_voce: AudioFileClip) -> AudioFileClip:
@@ -30,4 +33,6 @@ def adauga_muzica_fundal(audio_voce: AudioFileClip) -> AudioFileClip:
     muzica = audio_loop(muzica, duration=audio_voce.duration)
     muzica = volumex(muzica, VOLUM_MUZICA)
 
-    return CompositeAudioClip([muzica, audio_voce])
+    voce = volumex(audio_voce, VOLUM_VOCE)
+
+    return CompositeAudioClip([muzica, voce])

@@ -131,7 +131,9 @@ def _incarca_clip_scena(scena: dict, durata: float, latime: int, inaltime: int, 
     if permite_stock and random.random() < PROBABILITATE_STOCK_FOOTAGE:
         cale_video = cale_temp + ".mp4"
         if cauta_video_stock(scena["cuvinte_cheie_vizuale"], cale_video, latime, inaltime):
-            clip_brut = VideoFileClip(cale_video).without_audio()
+            # audio=False de la construire (nu .without_audio() dupa) - altfel
+            # readerul audio intern ramane deschis si blocheaza fisierul pe Windows.
+            clip_brut = VideoFileClip(cale_video, audio=False)
             clip = _adapteaza_la_rezolutie(clip_brut, latime, inaltime)
             clip = _ajusteaza_durata_clip(clip, durata)
             return clip, clip_brut
