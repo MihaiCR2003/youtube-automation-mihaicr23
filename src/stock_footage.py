@@ -13,6 +13,23 @@ from src.config import PEXELS_API_KEY
 
 _URL_CAUTARE = "https://api.pexels.com/videos/search"
 
+# Cuvinte fara valoare vizuala, eliminate de la inceputul textului scenei
+# inainte de a construi termenul de cautare - altfel cautarea pe "But what
+# happened next" gaseste orice clip generic, fara legatura cu subiectul.
+_CUVINTE_DE_IGNORAT = {
+    "the", "a", "an", "but", "and", "or", "so", "then", "now", "here", "there",
+    "this", "that", "these", "those", "it", "its", "what", "when", "where",
+    "imagine", "think", "picture", "consider", "yet", "still", "just", "even",
+}
+
+
+def _extrage_termen_cautare(text: str) -> str:
+    """Elimina cuvintele de umplutura de la inceput, ca sa ajungem mai rapid la cuvinte concrete."""
+    cuvinte = [c.strip(".,!?\"'") for c in text.split()]
+    while cuvinte and cuvinte[0].lower() in _CUVINTE_DE_IGNORAT:
+        cuvinte.pop(0)
+    return " ".join(cuvinte[:6])
+
 
 def cauta_video_stock(prompt: str, cale_fisier: str, latime: int, inaltime: int) -> bool:
     """
@@ -23,9 +40,9 @@ def cauta_video_stock(prompt: str, cale_fisier: str, latime: int, inaltime: int)
     if not PEXELS_API_KEY:
         return False
 
-    # Folosim doar primele cuvinte ale scenei ca termen de cautare -
-    # propozitiile complete de naratiune dau rezultate slabe pe Pexels.
-    termen_cautare = " ".join(prompt.split()[:6])
+    termen_cautare = _extrage_termen_cautare(prompt)
+    if not termen_cautare:
+        return False
     orientare = "portrait" if inaltime > latime else "landscape"
 
     raspuns = requests.get(

@@ -4,7 +4,6 @@ voiceover-ul deja generat (Etapa 2) si subtitrari sincronizate pe cuvinte.
 """
 import os
 import random
-import re
 import tempfile
 from PIL import Image
 from moviepy.editor import (
@@ -30,6 +29,13 @@ if not hasattr(Image, "ANTIALIAS"):
 # de a cadea pe o imagine generata AI - adauga variatie vizuala intre scene.
 PROBABILITATE_STOCK_FOOTAGE = 0.5
 
+# Stock footage real e folosit DOAR pentru aceste categorii - subiectele de
+# istorie/mister/povesti vechi au nevoie de scene specifice unei epoci, pe
+# care filmari reale moderne nu le pot reda (risc de anacronisme vizuale,
+# ex: o cladire moderna intr-o poveste din 1587). Pentru acelea folosim
+# exclusiv imagini generate AI.
+CATEGORII_PERMISE_STOCK = {"world_event", "curiosity"}
+
 # Rezolutia finala a video-ului, in functie de tip
 REZOLUTII = {
     "short": (1080, 1920),  # vertical, pentru YouTube Shorts
@@ -40,12 +46,6 @@ REZOLUTII = {
 CUVINTE_PER_SUBTITRARE = 4
 
 
-def _imparte_in_propozitii(text: str) -> list[str]:
-    """Sparge scriptul in propozitii, pe baza semnelor de punctuatie . ! ?"""
-    propozitii = re.split(r"(?<=[.!?])\s+", text.strip())
-    return [p.strip() for p in propozitii if p.strip()]
-
-
 def _alege_numar_scene(tip_video: str, durata_audio: float) -> int:
     """Decide in cate scene/imagini diferite impartim video-ul."""
     if tip_video == "short":
@@ -54,30 +54,40 @@ def _alege_numar_scene(tip_video: str, durata_audio: float) -> int:
     return max(10, round(durata_audio / 14))
 
 
-def _grupeaza_propozitii_in_scene(propozitii: list[str], numar_scene: int) -> list[str]:
-    """Grupeaza propozitiile in 'numar_scene' bucati, cat mai egale ca lungime de text."""
-    if numar_scene >= len(propozitii):
-        return propozitii
+def _grupeaza_scene(scene_brute: list[dict], numar_scene: int) -> list[dict]:
+    """
+    Grupeaza scenele "brute" primite de la Gemini (una per propozitie, fiecare
+    cu propriile cuvinte-cheie vizuale) in 'numar_scene' grupuri afisate, cat
+    mai egale ca lungime de text. Cuvintele-cheie vizuale ale grupului sunt
+    cele ale primei propozitii din grup (de obicei cea care introduce scena).
+    """
+    if numar_scene >= len(scene_brute):
+        return scene_brute
 
-    scene = []
-    propozitii_per_scena = len(propozitii) / numar_scene
+    grupuri = []
+    propozitii_per_grup = len(scene_brute) / numar_scene
     index = 0.0
-    while round(index) < len(propozitii):
-        bucata = propozitii[round(index): round(index + propozitii_per_scena)]
+    while round(index) < len(scene_brute):
+        bucata = scene_brute[round(index): round(index + propozitii_per_grup)]
         if bucata:
-            scene.append(" ".join(bucata))
-        index += propozitii_per_scena
-    return scene
+            grupuri.append(
+                {
+                    "text": " ".join(s["text"] for s in bucata),
+                    "cuvinte_cheie_vizuale": bucata[0]["cuvinte_cheie_vizuale"],
+                }
+            )
+        index += propozitii_per_grup
+    return grupuri
 
 
-def _calculeaza_durate_scene(scene: list[str], durata_audio: float) -> list[float]:
+def _calculeaza_durate_scene(scene: list[dict], durata_audio: float) -> list[float]:
     """
     Imparte durata totala a audio-ului intre scene, proportional cu lungimea
     textului fiecarei scene. Ultima scena absoarbe diferenta de rotunjire,
     ca suma duratelor sa fie EXACT egala cu durata audio-ului.
     """
-    lungime_totala = sum(len(s) for s in scene) or 1
-    durate = [max(durata_audio * (len(s) / lungime_totala), 1.5) for s in scene]
+    lungime_totala = sum(len(s["text"]) for s in scene) or 1
+    durate = [max(durata_audio * (len(s["text"]) / lungime_totala), 1.5) for s in scene]
 
     diferenta = durata_audio - sum(durate)
     durate[-1] = max(durate[-1] + diferenta, 0.5)
@@ -104,24 +114,33 @@ def _ajusteaza_durata_clip(clip, durata: float):
     return clip.set_duration(durata)
 
 
-def _incarca_clip_scena(scena_text: str, durata: float, latime: int, inaltime: int, cale_temp: str):
+def _incarca_clip_scena(scena: dict, durata: float, latime: int, inaltime: int, cale_temp: str, permite_stock: bool):
     """
-    Incearca mai intai un clip video real (Pexels), cu o sansa de 50%; daca
+    Daca 'permite_stock' e True, incearca mai intai un clip video real
+    (Pexels), cu o sansa de 50%, cautat pe baza cuvintelor-cheie vizuale
+    (NU pe textul narat, care e prea abstract pentru o cautare buna). Daca
     nu gaseste nimic relevant (sau PEXELS_API_KEY nu e setata), cade pe o
-    imagine generata AI (Pollinations.ai). Returneaza un clip cu durata exacta.
+    imagine generata AI (Pollinations.ai), folosind textul complet al scenei
+    ca prompt descriptiv.
+
+    Returneaza (clip, clip_video_brut_sau_None). 'clip_video_brut' e clipul
+    VideoFileClip original (NU cel decupat/redimensionat) - trebuie inchis
+    explicit cu .close() dupa randare, altfel pe Windows fisierul .mp4 ramane
+    blocat de procesul ffmpeg si TemporaryDirectory pica la cleanup.
     """
-    if random.random() < PROBABILITATE_STOCK_FOOTAGE:
+    if permite_stock and random.random() < PROBABILITATE_STOCK_FOOTAGE:
         cale_video = cale_temp + ".mp4"
-        if cauta_video_stock(scena_text, cale_video, latime, inaltime):
-            clip = VideoFileClip(cale_video).without_audio()
-            clip = _adapteaza_la_rezolutie(clip, latime, inaltime)
-            return _ajusteaza_durata_clip(clip, durata)
+        if cauta_video_stock(scena["cuvinte_cheie_vizuale"], cale_video, latime, inaltime):
+            clip_brut = VideoFileClip(cale_video).without_audio()
+            clip = _adapteaza_la_rezolutie(clip_brut, latime, inaltime)
+            clip = _ajusteaza_durata_clip(clip, durata)
+            return clip, clip_brut
 
     cale_imagine = cale_temp + ".png"
-    genereaza_imagine(scena_text, cale_imagine, latime=latime, inaltime=inaltime)
+    genereaza_imagine(scena["text"], cale_imagine, latime=latime, inaltime=inaltime)
     clip = ImageClip(cale_imagine)
     clip = _adapteaza_la_rezolutie(clip, latime, inaltime)
-    return clip.set_duration(durata)
+    return clip.set_duration(durata), None
 
 
 def _genereaza_clipuri_subtitrare(cuvinte: list[dict], latime: int, inaltime: int, folder_temp: str) -> list:
@@ -142,33 +161,40 @@ def _genereaza_clipuri_subtitrare(cuvinte: list[dict], latime: int, inaltime: in
 
 
 def construieste_video(
-    script_text: str,
+    scene_brute: list[dict],
     cale_audio: str,
     cuvinte: list[dict],
     tip_video: str,
     cale_output: str,
+    categorie: str = "",
 ) -> None:
     """
-    Functia principala: primeste scriptul, fisierul audio deja generat, lista
-    de cuvinte cu timestamp (din src.tts.genereaza_voiceover) si tipul de
-    video, si scrie fisierul video final (.mp4) la 'cale_output'.
+    Functia principala: primeste scenele brute (lista de {"text",
+    "cuvinte_cheie_vizuale"} din src.script_generator), fisierul audio deja
+    generat, lista de cuvinte cu timestamp (din src.tts.genereaza_voiceover),
+    tipul de video si categoria, si scrie fisierul video final (.mp4) la
+    'cale_output'. 'categorie' decide daca scenele pot folosi stock footage
+    real (vezi CATEGORII_PERMISE_STOCK) sau doar imagini AI.
     """
     latime, inaltime = REZOLUTII[tip_video]
+    permite_stock = categorie in CATEGORII_PERMISE_STOCK
     audio = AudioFileClip(cale_audio)
     durata_audio = audio.duration
 
-    propozitii = _imparte_in_propozitii(script_text)
     numar_scene = _alege_numar_scene(tip_video, durata_audio)
-    scene = _grupeaza_propozitii_in_scene(propozitii, numar_scene)
+    scene = _grupeaza_scene(scene_brute, numar_scene)
     durate_scene = _calculeaza_durate_scene(scene, durata_audio)
 
     with tempfile.TemporaryDirectory() as folder_temp:
         # 1. Pentru fiecare scena, incearca un clip stock video real, altfel genereaza o imagine AI
         clipuri_imagine = []
-        for i, (scena_text, durata) in enumerate(zip(scene, durate_scene)):
+        clipuri_video_brute = []
+        for i, (scena, durata) in enumerate(zip(scene, durate_scene)):
             cale_temp = os.path.join(folder_temp, f"scena_{i}")
-            clip = _incarca_clip_scena(scena_text, durata, latime, inaltime, cale_temp)
+            clip, clip_brut = _incarca_clip_scena(scena, durata, latime, inaltime, cale_temp, permite_stock)
             clipuri_imagine.append(clip)
+            if clip_brut is not None:
+                clipuri_video_brute.append(clip_brut)
 
         video_imagini = concatenate_videoclips(clipuri_imagine, method="compose")
 
@@ -180,11 +206,18 @@ def construieste_video(
         video_final = CompositeVideoClip([video_imagini, *clipuri_subtitrare])
         video_final = video_final.set_audio(audio_final).set_duration(durata_audio)
 
-        video_final.write_videofile(
-            cale_output,
-            fps=24,
-            codec="libx264",
-            audio_codec="aac",
-            threads=4,
-            logger=None,
-        )
+        try:
+            video_final.write_videofile(
+                cale_output,
+                fps=24,
+                codec="libx264",
+                audio_codec="aac",
+                threads=4,
+                logger=None,
+            )
+        finally:
+            # Pe Windows, fisierele .mp4 din folder_temp raman blocate de procesul
+            # ffmpeg al fiecarui VideoFileClip pana il inchidem explicit - altfel
+            # TemporaryDirectory pica la cleanup cu PermissionError.
+            for clip_brut in clipuri_video_brute:
+                clip_brut.close()

@@ -60,6 +60,16 @@ STRICT RULES:
 - The script must be written for voice narration (natural spoken English, no stage directions, no markdown).
 - The title must be curiosity-driven and clickable, but NOT misleading or false.
 
+- Break the full narration into "scene" entries in the JSON below - each entry is
+  one sentence or short narrative beat, covering the ENTIRE script in order, with
+  no gaps and no overlaps between entries.
+- For each scene entry, "cuvinte_cheie_vizuale" must describe a LITERAL, CONCRETE,
+  photographable real-world visual (objects/places/actions actually visible in
+  frame, e.g. "old ship deck stormy ocean", "ancient ruins overgrown jungle",
+  "waterfall aerial view") - NEVER abstract/narrative words like "mystery",
+  "secret", "imagine", character names, or specific historical event names that
+  can't literally be filmed today.
+
 Respond ONLY with a valid JSON object, no markdown formatting, with this exact structure:
 {{
   "idee_subiect": "short unique slug-like description of the specific topic, in English",
@@ -67,7 +77,9 @@ Respond ONLY with a valid JSON object, no markdown formatting, with this exact s
   "titlu": "the clickable video title",
   "descriere": "a 2-3 sentence YouTube description, SEO-optimized",
   "hashtags": ["#tag1", "#tag2", "#tag3", "#tag4", "#tag5"],
-  "script_text": "the full narration script"
+  "scene": [
+    {{"text": "one sentence or short beat of the narration", "cuvinte_cheie_vizuale": "2-5 literal visual keywords"}}
+  ]
 }}
 """
 
@@ -93,9 +105,16 @@ def genereaza_idee_si_script(
     date = json.loads(raspuns.text)
 
     # Validare minimala a campurilor obligatorii, ca sa prindem erori devreme si clar
-    campuri_necesare = ["idee_subiect", "categorie", "titlu", "descriere", "hashtags", "script_text"]
+    campuri_necesare = ["idee_subiect", "categorie", "titlu", "descriere", "hashtags", "scene"]
     for camp in campuri_necesare:
         if camp not in date:
             raise ValueError(f"Gemini nu a returnat campul obligatoriu '{camp}'. Raspuns primit: {date}")
+    for scena in date["scene"]:
+        if "text" not in scena or "cuvinte_cheie_vizuale" not in scena:
+            raise ValueError(f"O scena nu are 'text'/'cuvinte_cheie_vizuale'. Raspuns primit: {date}")
+
+    # script_text (textul complet, folosit pentru voiceover si salvare in Supabase)
+    # se construieste din scenele individuale, ca sa nu existe doua surse de adevar.
+    date["script_text"] = " ".join(scena["text"] for scena in date["scene"])
 
     return date
