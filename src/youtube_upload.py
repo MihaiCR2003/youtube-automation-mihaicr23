@@ -30,9 +30,17 @@ def _client_youtube():
     return build("youtube", "v3", credentials=credentiale)
 
 
-def uploadeaza_video(cale_video: str, titlu: str, descriere: str, hashtags: list[str], tip_video: str) -> str:
+def uploadeaza_video(
+    cale_video: str,
+    titlu: str,
+    descriere: str,
+    hashtags: list[str],
+    tip_video: str,
+    privacy_status: str = "public",
+) -> str:
     """
-    Incarca fisierul video pe YouTube ca PUBLIC si returneaza ID-ul video-ului.
+    Incarca fisierul video pe YouTube si returneaza ID-ul video-ului.
+    'privacy_status' poate fi 'public', 'private' sau 'unlisted' (util pentru teste).
     Pentru shorts adaugam '#Shorts' in descriere, ca YouTube sa-l recunoasca ca Short.
     """
     youtube = _client_youtube()
@@ -49,7 +57,7 @@ def uploadeaza_video(cale_video: str, titlu: str, descriere: str, hashtags: list
             "categoryId": "24",  # Entertainment
         },
         "status": {
-            "privacyStatus": "public",
+            "privacyStatus": privacy_status,
             "selfDeclaredMadeForKids": False,
         },
     }
