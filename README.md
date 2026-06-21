@@ -12,7 +12,7 @@ Construim sistemul pe etape. Etapele bifate sunt deja funcționale în acest rep
 - [x] **Etapa 3** — Asamblare video (moviepy) + subtitrări sincronizate
 - [x] **Etapa 4** — Upload automat pe YouTube (OAuth) + thumbnail
 - [x] **Etapa 5** — Bot Telegram (`/video [idee]`, notificări) + cron GitHub Actions
-- [ ] Etapa 6 — Configurare secrete pe GitHub + test end-to-end
+- [x] **Etapa 6** — Configurare secrete pe GitHub + test end-to-end
 
 ---
 
@@ -110,4 +110,26 @@ Module de cod adăugate la această etapă:
 
 ---
 
-*Pasul 6 (configurare Secrets pe GitHub, activare workflow-uri) va fi adăugat în etapa următoare.*
+## Pasul 6 — Secrets pe GitHub (sistemul rulează singur, de aici încolo)
+
+Cele 8 secrete necesare workflow-urilor se setează în **Settings → Secrets and variables → Actions → New repository secret**, una câte una:
+
+```
+SUPABASE_URL
+SUPABASE_KEY
+GEMINI_API_KEY
+TELEGRAM_BOT_TOKEN
+TELEGRAM_CHAT_ID
+YOUTUBE_CLIENT_ID
+YOUTUBE_CLIENT_SECRET
+YOUTUBE_REFRESH_TOKEN
+```
+
+Valorile sunt cele din `.env`-ul tău local (vezi pașii anteriori pentru cum le obții pe fiecare).
+
+**Sistemul este complet funcțional și testat end-to-end**, inclusiv în CI (GitHub Actions), nu doar local:
+- `main.yml` a generat și încărcat public un video pe canal direct din GitHub Actions
+- `stats.yml` a trimis statisticile canalului pe Telegram din GitHub Actions
+- comanda `/video [idee]` din Telegram a fost procesată corect prin `check_telegram.py`
+
+De acum, sistemul rulează singur, 4 ori pe zi (3 shorts + 1 video lung), verifică comenzi Telegram la fiecare 5 minute, și trimite statistici zilnic — fără nicio intervenție manuală.
