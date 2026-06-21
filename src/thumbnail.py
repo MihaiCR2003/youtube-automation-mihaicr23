@@ -9,7 +9,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 from src.images import genereaza_imagine
 
-_CALE_FONT = Path(__file__).resolve().parent.parent / "assets" / "fonts" / "Anton-Regular.ttf"
+_CALE_FONT = Path(__file__).resolve().parent.parent / "assets" / "fonts" / "SAN ANDREAS.otf"
 LATIME_THUMBNAIL = 1280
 INALTIME_THUMBNAIL = 720
 
