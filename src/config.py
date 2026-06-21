@@ -29,9 +29,11 @@ GEMINI_API_KEY = _get_required("GEMINI_API_KEY")
 TELEGRAM_BOT_TOKEN = _get_required("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = _get_required("TELEGRAM_CHAT_ID")
 
-YOUTUBE_CLIENT_ID = _get_required("YOUTUBE_CLIENT_ID")
-YOUTUBE_CLIENT_SECRET = _get_required("YOUTUBE_CLIENT_SECRET")
-YOUTUBE_REFRESH_TOKEN = _get_required("YOUTUBE_REFRESH_TOKEN")
+# Aceste 3 variabile sunt necesare doar de la Etapa 4 (upload pe YouTube) incolo,
+# de aceea aici sunt opționale - validarea lor strictă se face în youtube_upload.py.
+YOUTUBE_CLIENT_ID = os.environ.get("YOUTUBE_CLIENT_ID", "")
+YOUTUBE_CLIENT_SECRET = os.environ.get("YOUTUBE_CLIENT_SECRET", "")
+YOUTUBE_REFRESH_TOKEN = os.environ.get("YOUTUBE_REFRESH_TOKEN", "")
 
 # Câte zile trebuie să treacă înainte de a permite o idee din aceeași categorie
 ZILE_MINIME_INTRE_SUBIECTE_SIMILARE = 7
