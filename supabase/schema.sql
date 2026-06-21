@@ -47,3 +47,22 @@ create index if not exists idx_videos_categorie_data on videos (categorie, data_
 
 -- Index pentru căutări rapide după status (ce trebuie postat încă)
 create index if not exists idx_videos_status on videos (status_postat);
+
+-- Aceasta tabela este accesata DOAR de scriptul nostru (backend), nu de
+-- utilizatori publici dintr-o aplicatie web, asa ca dezactivam Row Level
+-- Security (Supabase il activeaza implicit pe tabelele noi si ar bloca
+-- toate operatiile facute cu cheia "publishable").
+alter table videos disable row level security;
+
+
+-- ============================================================
+-- Tabela bot_state: o mica tabela "cheie -> valoare" folosita de botul de
+-- Telegram ca sa retina ultimul mesaj procesat (ca sa nu execute de doua
+-- ori aceeasi comanda /video la rulari succesive ale cron-ului).
+-- ============================================================
+create table if not exists bot_state (
+    cheie text primary key,
+    valoare text not null
+);
+
+alter table bot_state disable row level security;

@@ -77,6 +77,19 @@ def marcheaza_postat(video_id: str, youtube_video_id: str) -> None:
     ).eq("id", video_id).execute()
 
 
+def get_stare(cheie: str, valoare_implicita: str) -> str:
+    """Citeste o valoare din tabela bot_state (folosita de botul de Telegram)."""
+    rezultat = _client.table("bot_state").select("valoare").eq("cheie", cheie).execute()
+    if rezultat.data:
+        return rezultat.data[0]["valoare"]
+    return valoare_implicita
+
+
+def seteaza_stare(cheie: str, valoare: str) -> None:
+    """Scrie/actualizeaza o valoare in tabela bot_state."""
+    _client.table("bot_state").upsert({"cheie": cheie, "valoare": valoare}).execute()
+
+
 def ultimele_idei(limita: int = 20) -> list[str]:
     """Returnează ultimele idei de subiecte folosite, ca să le evităm la generare."""
     rezultat = (

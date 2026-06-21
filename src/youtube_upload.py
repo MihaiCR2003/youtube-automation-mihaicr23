@@ -10,10 +10,13 @@ from googleapiclient.http import MediaFileUpload
 
 from src.config import YOUTUBE_CLIENT_ID, YOUTUBE_CLIENT_SECRET, YOUTUBE_REFRESH_TOKEN
 
-_SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
+_SCOPES = [
+    "https://www.googleapis.com/auth/youtube.upload",
+    "https://www.googleapis.com/auth/youtube.readonly",
+]
 
 
-def _client_youtube():
+def client_youtube():
     if not (YOUTUBE_CLIENT_ID and YOUTUBE_CLIENT_SECRET and YOUTUBE_REFRESH_TOKEN):
         raise RuntimeError(
             "Variabilele YOUTUBE_CLIENT_ID / YOUTUBE_CLIENT_SECRET / YOUTUBE_REFRESH_TOKEN "
@@ -43,7 +46,7 @@ def uploadeaza_video(
     'privacy_status' poate fi 'public', 'private' sau 'unlisted' (util pentru teste).
     Pentru shorts adaugam '#Shorts' in descriere, ca YouTube sa-l recunoasca ca Short.
     """
-    youtube = _client_youtube()
+    youtube = client_youtube()
 
     descriere_completa = descriere + "\n\n" + " ".join(hashtags)
     if tip_video == "short":
@@ -70,5 +73,5 @@ def uploadeaza_video(
 
 def seteaza_thumbnail(youtube_video_id: str, cale_imagine: str) -> None:
     """Seteaza un thumbnail custom pentru un video deja incarcat (folosit pentru video-urile lungi)."""
-    youtube = _client_youtube()
+    youtube = client_youtube()
     youtube.thumbnails().set(videoId=youtube_video_id, media_body=MediaFileUpload(cale_imagine)).execute()

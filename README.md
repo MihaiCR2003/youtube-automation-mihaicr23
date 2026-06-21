@@ -11,7 +11,7 @@ Construim sistemul pe etape. Etapele bifate sunt deja funcționale în acest rep
 - [x] **Etapa 2** — Generare text (Gemini) + voce (edge-tts) + imagini (Pollinations.ai)
 - [x] **Etapa 3** — Asamblare video (moviepy) + subtitrări sincronizate
 - [x] **Etapa 4** — Upload automat pe YouTube (OAuth) + thumbnail
-- [ ] Etapa 5 — Bot Telegram (`/video [idee]`, notificări) + cron GitHub Actions
+- [x] **Etapa 5** — Bot Telegram (`/video [idee]`, notificări) + cron GitHub Actions
 - [ ] Etapa 6 — Configurare secrete pe GitHub + test end-to-end
 
 ---
@@ -93,4 +93,21 @@ Module de cod adăugate la această etapă:
 
 ---
 
-*Pașii 5-6 (bot Telegram, cron GitHub Actions, secrete GitHub) vor fi adăugați în etapele următoare ale acestui README, pe măsură ce le implementăm.*
+## Pasul 5 — Bot Telegram + automatizare completă (GitHub Actions)
+
+Module de cod adăugate la această etapă:
+- [`main.py`](main.py) — orchestratorul: generează idee+script+voce+imagini+video și îl încarcă pe YouTube
+- [`src/telegram_bot.py`](src/telegram_bot.py) — trimite notificări și citește comenzile `/video [idee]`
+- [`check_telegram.py`](check_telegram.py) — verifică periodic comenzi noi pe Telegram (rulat de `telegram.yml`)
+- [`src/youtube_stats.py`](src/youtube_stats.py) + [`stats.py`](stats.py) — trimite zilnic statisticile canalului
+- [`.github/workflows/main.yml`](.github/workflows/main.yml) — cron la 08:00 / 12:00 / 16:00 (shorts) și 21:00 (long), ora României
+- [`.github/workflows/telegram.yml`](.github/workflows/telegram.yml) — verifică comenzi noi la fiecare 5 minute
+- [`.github/workflows/stats.yml`](.github/workflows/stats.yml) — trimite statisticile o dată pe zi
+
+**Notă despre ora de vară/iarnă:** cron-ul GitHub Actions rulează fix în UTC și nu se ajustează automat. Orele din `main.yml` sunt calculate pentru ora de vară a României (UTC+3); iarna, postările vor fi cu o oră mai târziu decât cele dorite (09:00/13:00/17:00/22:00 în loc de 08:00/12:00/16:00/21:00). E o limitare cunoscută, acceptabilă pentru acest proiect.
+
+**Notă despre scope YouTube:** am extins permisiunile OAuth cu `youtube.readonly` (necesar pentru statistici). Dacă ai generat `YOUTUBE_REFRESH_TOKEN` înainte de această etapă, trebuie să rulezi din nou `python scripts/get_youtube_token.py`.
+
+---
+
+*Pasul 6 (configurare Secrets pe GitHub, activare workflow-uri) va fi adăugat în etapa următoare.*

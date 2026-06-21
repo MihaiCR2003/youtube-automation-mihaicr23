@@ -21,10 +21,18 @@ _LUNGIME_DUPA_TIP = {
 }
 
 
-def _construieste_prompt(tip_video: str, idei_de_evitat: list[str]) -> str:
+def _construieste_prompt(tip_video: str, idei_de_evitat: list[str], idee_fortata: str | None) -> str:
     """Construieste textul (promptul) trimis catre Gemini, cu toate regulile noastre."""
     lungime = _LUNGIME_DUPA_TIP[tip_video]
-    idei_text = "\n".join(f"- {idee}" for idee in idei_de_evitat) or "(none yet)"
+
+    if idee_fortata:
+        regula_subiect = f'- The video MUST be about this exact topic, given by the channel owner: "{idee_fortata}"'
+    else:
+        idei_text = "\n".join(f"- {idee}" for idee in idei_de_evitat) or "(none yet)"
+        regula_subiect = (
+            "- The topic must NOT be the same as, or a close variation of, any topic in "
+            f"this list of already-used topics:\n{idei_text}"
+        )
 
     return f"""
 You are a viral YouTube content writer for a channel about {_NICHE_DESCRIERE}.
@@ -32,8 +40,7 @@ Write everything in ENGLISH only.
 
 STRICT RULES:
 - Never write about weather forecasts or mundane daily-life topics.
-- The topic must NOT be the same as, or a close variation of, any topic in this list of already-used topics:
-{idei_text}
+{regula_subiect}
 - The script length must be {lungime}.
 - The script must be written for voice narration (natural spoken English, no stage directions, no markdown).
 - The title must be curiosity-driven and clickable, but NOT misleading or false.
@@ -50,13 +57,17 @@ Respond ONLY with a valid JSON object, no markdown formatting, with this exact s
 """
 
 
-def genereaza_idee_si_script(tip_video: str, idei_de_evitat: list[str]) -> dict:
+def genereaza_idee_si_script(
+    tip_video: str, idei_de_evitat: list[str], idee_fortata: str | None = None
+) -> dict:
     """
-    Cere modelului Gemini sa genereze o idee noua + scriptul complet.
+    Cere modelului Gemini sa genereze o idee + scriptul complet.
     'tip_video' trebuie sa fie 'short' sau 'long'.
     'idei_de_evitat' este lista ultimelor subiecte folosite (pentru anti-repetare).
+    'idee_fortata' - daca e specificata (comanda /video din Telegram), scriptul
+    va fi generat exact pe baza acestei idei, ignorand anti-repetarea.
     """
-    prompt = _construieste_prompt(tip_video, idei_de_evitat)
+    prompt = _construieste_prompt(tip_video, idei_de_evitat, idee_fortata)
 
     model = genai.GenerativeModel(_MODEL_NAME)
     raspuns = model.generate_content(
