@@ -1,30 +1,11 @@
 """
 Tot ce ține de citirea/scrierea în Supabase, inclusiv regula anti-repetare.
 """
-from datetime import datetime, timedelta, timezone
 from supabase import create_client, Client
 
-from src.config import SUPABASE_URL, SUPABASE_KEY, ZILE_MINIME_INTRE_SUBIECTE_SIMILARE
+from src.config import SUPABASE_URL, SUPABASE_KEY
 
 _client: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-
-
-def categorie_disponibila(categorie: str) -> bool:
-    """
-    Verifică în Supabase dacă o categorie (ex: 'mister', 'istorie') poate fi
-    folosită din nou acum, sau dacă a fost folosită prea recent (< 7 zile).
-    """
-    limita = datetime.now(timezone.utc) - timedelta(days=ZILE_MINIME_INTRE_SUBIECTE_SIMILARE)
-
-    rezultat = (
-        _client.table("videos")
-        .select("id, data_crearii")
-        .eq("categorie", categorie)
-        .gte("data_crearii", limita.isoformat())
-        .execute()
-    )
-
-    return len(rezultat.data) == 0
 
 
 def idee_deja_folosita(idee_subiect: str) -> bool:

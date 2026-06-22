@@ -39,8 +39,5 @@ YOUTUBE_REFRESH_TOKEN = os.environ.get("YOUTUBE_REFRESH_TOKEN", "")
 # fara mix cu stock footage real (vezi src/stock_footage.py).
 PEXELS_API_KEY = os.environ.get("PEXELS_API_KEY", "")
 
-# Câte zile trebuie să treacă înainte de a permite o idee din aceeași categorie
-ZILE_MINIME_INTRE_SUBIECTE_SIMILARE = 7
-
 # Orele fixe de postare (format 24h, ora UTC va fi calculată separat în workflow)
 ORE_POSTARE = ["08:00", "12:00", "16:00", "21:00"]

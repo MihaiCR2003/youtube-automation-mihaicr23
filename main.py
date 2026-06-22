@@ -11,7 +11,6 @@ import os
 import tempfile
 
 from src.db import (
-    categorie_disponibila,
     idee_deja_folosita,
     marcheaza_postat,
     salveaza_video,
@@ -29,22 +28,24 @@ def _genereaza_idee_valida(tip_video: str, idee_manuala: str | None) -> dict:
     """
     Daca 'idee_manuala' e specificata (comanda /video), scriptul se genereaza
     direct pe baza acelei idei, ignorand anti-repetarea.
-    Altfel, generam o idee noua, respectand regula anti-repetare (categoria nu
-    se repeta in ultimele 7 zile, ideea exacta nu se repeta niciodata).
+    Altfel, generam o idee noua: Gemini primeste lista ultimelor idei deja
+    folosite (in prompt) ca sa evite sa le repete, iar 'idee_deja_folosita'
+    e doar o plasa de siguranta pentru cazul (rar) in care genereaza totusi
+    exact aceeasi idee. NU blocam categoria intreaga (mystery/history/etc.) -
+    cu doar 5 categorii posibile si 4 video-uri/zi, un cooldown de 7 zile pe
+    categorie ar bloca aproape mereu totul, fortand retry-uri care epuizeaza
+    rapid cota gratuita Gemini (20 cereri/zi).
     """
     if idee_manuala:
         return genereaza_idee_si_script(tip_video, [], idee_fortata=idee_manuala)
 
     idei_de_evitat = ultimele_idei()
-    for _ in range(5):
+    for _ in range(3):
         date = genereaza_idee_si_script(tip_video, idei_de_evitat)
-        if idee_deja_folosita(date["idee_subiect"]):
-            continue
-        if not categorie_disponibila(date["categorie"]):
-            continue
-        return date
+        if not idee_deja_folosita(date["idee_subiect"]):
+            return date
 
-    raise RuntimeError("Nu am putut genera o idee noua, originala, dupa 5 incercari.")
+    raise RuntimeError("Nu am putut genera o idee noua, originala, dupa 3 incercari.")
 
 
 def genereaza_si_posteaza(tip_video: str, ora_postarii: str = "", idee_manuala: str | None = None) -> None:
