@@ -5,6 +5,7 @@ voiceover-ul deja generat (Etapa 2) si subtitrari sincronizate pe cuvinte.
 import os
 import random
 import tempfile
+import numpy as np
 from PIL import Image
 from moviepy.editor import (
     ImageClip,
@@ -35,6 +36,12 @@ PROBABILITATE_STOCK_FOOTAGE = 0.5
 # ex: o cladire moderna intr-o poveste din 1587). Pentru acelea folosim
 # exclusiv imagini generate AI.
 CATEGORII_PERMISE_STOCK = {"world_event", "curiosity"}
+
+# Durata tranzitiei fade intre scene consecutive (secunde)
+DURATA_TRANZITIE = 0.5
+
+# Cat de mult se schimba zoom-ul (Ken Burns) pe durata unei imagini statice
+ZOOM_KEN_BURNS = 1.15
 
 # Rezolutia finala a video-ului, in functie de tip
 REZOLUTII = {
@@ -105,6 +112,33 @@ def _adapteaza_la_rezolutie(clip, latime: int, inaltime: int):
     return crop(clip, width=latime, height=inaltime, x_center=clip.w / 2, y_center=clip.h / 2)
 
 
+def _aplica_efect_ken_burns(clip, zoom_final: float = ZOOM_KEN_BURNS):
+    """
+    Aplica un zoom lent si continuu pe un clip static (imagine), de la 1.0x
+    la 'zoom_final' (sau invers, ales aleator) - imaginile AI nu mai stau
+    complet nemiscate pe ecran, ca intr-un slideshow.
+    """
+    durata = clip.duration
+    latime_originala, inaltime_originala = clip.size
+    zoom_invers = random.random() < 0.5  # variatie: jumatate din scene fac zoom-out
+
+    def transforma_cadru(get_frame, t):
+        progres = t / durata if durata > 0 else 0
+        factor = 1 + (zoom_final - 1) * (1 - progres if zoom_invers else progres)
+
+        imagine = Image.fromarray(get_frame(t))
+        latime_noua = max(latime_originala, int(latime_originala * factor))
+        inaltime_noua = max(inaltime_originala, int(inaltime_originala * factor))
+        imagine = imagine.resize((latime_noua, inaltime_noua), Image.LANCZOS)
+
+        x = (latime_noua - latime_originala) // 2
+        y = (inaltime_noua - inaltime_originala) // 2
+        imagine = imagine.crop((x, y, x + latime_originala, y + inaltime_originala))
+        return np.array(imagine)
+
+    return clip.fl(transforma_cadru)
+
+
 def _ajusteaza_durata_clip(clip, durata: float):
     """Bucleaza clipul video daca e mai scurt decat durata ceruta, sau il taie daca e mai lung."""
     if clip.duration < durata:
@@ -123,6 +157,9 @@ def _incarca_clip_scena(scena: dict, durata: float, latime: int, inaltime: int, 
     imagine generata AI (Pollinations.ai), folosind textul complet al scenei
     ca prompt descriptiv.
 
+    'durata' primita aici include deja bufferul pentru tranzitia fade
+    (vezi DURATA_TRANZITIE in construieste_video).
+
     Returneaza (clip, clip_video_brut_sau_None). 'clip_video_brut' e clipul
     VideoFileClip original (NU cel decupat/redimensionat) - trebuie inchis
     explicit cu .close() dupa randare, altfel pe Windows fisierul .mp4 ramane
@@ -138,11 +175,15 @@ def _incarca_clip_scena(scena: dict, durata: float, latime: int, inaltime: int, 
             clip = _ajusteaza_durata_clip(clip, durata)
             return clip, clip_brut
 
+    # Imaginile AI sunt statice, asa ca le adaugam efectul de zoom lent
+    # (Ken Burns) - filmarile stock de mai sus au deja miscare naturala.
     cale_imagine = cale_temp + ".png"
     genereaza_imagine(scena["text"], cale_imagine, latime=latime, inaltime=inaltime)
     clip = ImageClip(cale_imagine)
     clip = _adapteaza_la_rezolutie(clip, latime, inaltime)
-    return clip.set_duration(durata), None
+    clip = clip.set_duration(durata)
+    clip = _aplica_efect_ken_burns(clip)
+    return clip, None
 
 
 def _genereaza_clipuri_subtitrare(cuvinte: list[dict], latime: int, inaltime: int, folder_temp: str) -> list:
@@ -189,16 +230,26 @@ def construieste_video(
 
     with tempfile.TemporaryDirectory() as folder_temp:
         # 1. Pentru fiecare scena, incearca un clip stock video real, altfel genereaza o imagine AI
+        #    Adaugam DURATA_TRANZITIE la fiecare clip, ca sa avem suficient "material" pentru
+        #    crossfade-ul dintre scene fara sa scurtam video-ul final sub durata audio-ului.
         clipuri_imagine = []
         clipuri_video_brute = []
         for i, (scena, durata) in enumerate(zip(scene, durate_scene)):
             cale_temp = os.path.join(folder_temp, f"scena_{i}")
-            clip, clip_brut = _incarca_clip_scena(scena, durata, latime, inaltime, cale_temp, permite_stock)
+            clip, clip_brut = _incarca_clip_scena(
+                scena, durata + DURATA_TRANZITIE, latime, inaltime, cale_temp, permite_stock
+            )
             clipuri_imagine.append(clip)
             if clip_brut is not None:
                 clipuri_video_brute.append(clip_brut)
 
-        video_imagini = concatenate_videoclips(clipuri_imagine, method="compose")
+        # Tranzitii fade intre scene consecutive (prima scena nu are fade la intrare)
+        clipuri_cu_tranzitie = [clipuri_imagine[0]] + [
+            clip.crossfadein(DURATA_TRANZITIE) for clip in clipuri_imagine[1:]
+        ]
+        video_imagini = concatenate_videoclips(
+            clipuri_cu_tranzitie, method="compose", padding=-DURATA_TRANZITIE
+        )
 
         # 2. Genereaza clipurile de subtitrare, sincronizate pe cuvinte
         clipuri_subtitrare = _genereaza_clipuri_subtitrare(cuvinte, latime, inaltime, folder_temp)
