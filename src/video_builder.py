@@ -56,8 +56,12 @@ REZOLUTII = {
 _FOLDER_INTRO = Path(__file__).resolve().parent.parent / "assets" / "video"
 _EXTENSII_VIDEO = (".mp4", ".mov", ".webm", ".mkv")
 
-# Cate cuvinte afisam simultan pe ecran intr-un grup de subtitrare
+# Cate cuvinte afisam simultan pe ecran intr-un grup de subtitrare.
+# La shorts (karaoke) folosim grupuri mici (efect snappy, un clip per cuvant).
+# La video-urile lungi folosim grupuri mai mari, tinute static mai mult timp:
+# mult mai putine clipuri de compus => randare semnificativ mai rapida.
 CUVINTE_PER_SUBTITRARE = 4
+CUVINTE_PER_SUBTITRARE_LUNG = 7
 
 
 def _alege_numar_scene(tip_video: str, durata_audio: float) -> int:
@@ -229,9 +233,10 @@ def _genereaza_clipuri_subtitrare(
     evidentiere) - de ~4 ori mai putine clipuri, esential ca randarea unui video de
     10+ minute sa nu dureze o vesnicie / sa nu depaseasca limita CI.
     """
+    cuvinte_per_grup = CUVINTE_PER_SUBTITRARE if karaoke else CUVINTE_PER_SUBTITRARE_LUNG
     clipuri = []
-    for index_grup, start_grup in enumerate(range(0, len(cuvinte), CUVINTE_PER_SUBTITRARE)):
-        grup = cuvinte[start_grup: start_grup + CUVINTE_PER_SUBTITRARE]
+    for index_grup, start_grup in enumerate(range(0, len(cuvinte), cuvinte_per_grup)):
+        grup = cuvinte[start_grup: start_grup + cuvinte_per_grup]
         texte_grup = [c["text"] for c in grup]
 
         if not karaoke:
