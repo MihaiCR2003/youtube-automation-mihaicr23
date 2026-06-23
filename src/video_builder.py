@@ -19,7 +19,7 @@ from moviepy.video.fx.all import crop, loop
 from src.images import genereaza_imagine
 from src.music import adauga_muzica_fundal
 from src.stock_footage import cauta_video_stock
-from src.subtitles import deseneaza_subtitlu
+from src.subtitles import deseneaza_subtitlu_karaoke
 
 # moviepy 1.0.3 foloseste Image.ANTIALIAS, eliminat in Pillow >= 10.
 # Fara acest shim, .resize() pe clipuri (imagine SAU video) pica cu AttributeError.
@@ -187,19 +187,29 @@ def _incarca_clip_scena(scena: dict, durata: float, latime: int, inaltime: int, 
 
 
 def _genereaza_clipuri_subtitrare(cuvinte: list[dict], latime: int, inaltime: int, folder_temp: str) -> list:
-    """Construieste lista de ImageClip-uri cu textul subtitrarii, sincronizate pe cuvinte."""
+    """
+    Construieste subtitrarile in stil karaoke: cuvintele sunt afisate in grupuri,
+    iar pentru fiecare cuvant generam un clip separat in care DOAR cuvantul
+    vorbit in acel moment e evidentiat (galben), sincronizat pe timestamp-ul lui.
+    """
     clipuri = []
-    for index in range(0, len(cuvinte), CUVINTE_PER_SUBTITRARE):
-        grup = cuvinte[index: index + CUVINTE_PER_SUBTITRARE]
-        text_grup = " ".join(c["text"] for c in grup)
-        start = grup[0]["start"]
-        sfarsit = grup[-1]["end"]
+    for index_grup, start_grup in enumerate(range(0, len(cuvinte), CUVINTE_PER_SUBTITRARE)):
+        grup = cuvinte[start_grup: start_grup + CUVINTE_PER_SUBTITRARE]
+        texte_grup = [c["text"] for c in grup]
 
-        cale_png = os.path.join(folder_temp, f"subtitlu_{index}.png")
-        deseneaza_subtitlu(text_grup, latime, inaltime, cale_png)
+        for index_in_grup, cuvant in enumerate(grup):
+            cale_png = os.path.join(folder_temp, f"subtitlu_{index_grup}_{index_in_grup}.png")
+            deseneaza_subtitlu_karaoke(texte_grup, index_in_grup, latime, inaltime, cale_png)
 
-        clip = ImageClip(cale_png).set_start(start).set_duration(max(sfarsit - start, 0.3))
-        clipuri.append(clip)
+            start = cuvant["start"]
+            # Cuvantul ramane evidentiat pana incepe urmatorul (sau pana la finalul lui, daca e ultimul)
+            if index_in_grup + 1 < len(grup):
+                sfarsit = grup[index_in_grup + 1]["start"]
+            else:
+                sfarsit = cuvant["end"]
+
+            clip = ImageClip(cale_png).set_start(start).set_duration(max(sfarsit - start, 0.15))
+            clipuri.append(clip)
     return clipuri
 
 

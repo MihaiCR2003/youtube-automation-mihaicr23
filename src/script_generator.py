@@ -62,6 +62,19 @@ STRICT RULES:
 - The script must be written for voice narration (natural spoken English, no stage directions, no markdown).
 - The title must be curiosity-driven and clickable, but NOT misleading or false.
 
+CRITICAL - THE HOOK (first sentence of the script):
+- The FIRST sentence is the single most important line - it decides if the viewer
+  keeps watching or scrolls away in the first 3 seconds.
+- It must INSTANTLY create an open curiosity loop: drop the viewer into the most
+  shocking, strange or unresolved part of the story, with a concrete vivid detail.
+- Start mid-action or with a jarring fact/claim - NEVER with slow throat-clearing
+  like "Imagine...", "Have you ever wondered...", "Let me tell you about...",
+  "In the world of...", or generic scene-setting.
+- Good hook examples (style, not topic): "In 1518, hundreds of people danced
+  themselves to death - and no one knows why.", "This photo was taken seconds
+  before everyone in it vanished without a trace."
+- Do NOT resolve the mystery in the hook - make them NEED the rest of the video.
+
 - Break the full narration into "scene" entries in the JSON below - each entry is
   one sentence or short narrative beat, covering the ENTIRE script in order, with
   no gaps and no overlaps between entries.
