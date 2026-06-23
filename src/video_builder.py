@@ -5,6 +5,7 @@ voiceover-ul deja generat (Etapa 2) si subtitrari sincronizate pe cuvinte.
 import os
 import random
 import tempfile
+from pathlib import Path
 import numpy as np
 from PIL import Image
 from moviepy.editor import (
@@ -47,7 +48,13 @@ ZOOM_KEN_BURNS = 1.15
 REZOLUTII = {
     "short": (1080, 1920),  # vertical, pentru YouTube Shorts
     "long": (1920, 1080),   # orizontal, pentru video-uri normale (16:9)
+    "top5": (1920, 1080),   # orizontal, pentru video-urile TOP 5 (~10 min)
 }
+
+# Folderul cu intro-ul de canal (un singur fisier video) - prepended pe
+# video-urile lungi. Daca folderul e gol/lipseste, video-ul se face fara intro.
+_FOLDER_INTRO = Path(__file__).resolve().parent.parent / "assets" / "video"
+_EXTENSII_VIDEO = (".mp4", ".mov", ".webm", ".mkv")
 
 # Cate cuvinte afisam simultan pe ecran intr-un grup de subtitrare
 CUVINTE_PER_SUBTITRARE = 4
@@ -148,7 +155,10 @@ def _ajusteaza_durata_clip(clip, durata: float):
     return clip.set_duration(durata)
 
 
-def _incarca_clip_scena(scena: dict, durata: float, latime: int, inaltime: int, cale_temp: str, permite_stock: bool):
+def _incarca_clip_scena(
+    scena: dict, durata: float, latime: int, inaltime: int, cale_temp: str,
+    permite_stock: bool, ken_burns: bool,
+):
     """
     Daca 'permite_stock' e True, incearca mai intai un clip video real
     (Pexels), cu o sansa de 50%, cautat pe baza cuvintelor-cheie vizuale
@@ -158,7 +168,9 @@ def _incarca_clip_scena(scena: dict, durata: float, latime: int, inaltime: int, 
     ca prompt descriptiv.
 
     'durata' primita aici include deja bufferul pentru tranzitia fade
-    (vezi DURATA_TRANZITIE in construieste_video).
+    (vezi DURATA_TRANZITIE in construieste_video). 'ken_burns' aplica zoom
+    lent pe imaginile statice (doar la shorts - pe video-urile lungi e prea
+    lent: transforma fiecare cadru cu PIL, ar dura zeci de minute pe 10+ min).
 
     Returneaza (clip, clip_video_brut_sau_None). 'clip_video_brut' e clipul
     VideoFileClip original (NU cel decupat/redimensionat) - trebuie inchis
@@ -175,27 +187,62 @@ def _incarca_clip_scena(scena: dict, durata: float, latime: int, inaltime: int, 
             clip = _ajusteaza_durata_clip(clip, durata)
             return clip, clip_brut
 
-    # Imaginile AI sunt statice, asa ca le adaugam efectul de zoom lent
-    # (Ken Burns) - filmarile stock de mai sus au deja miscare naturala.
     cale_imagine = cale_temp + ".png"
     genereaza_imagine(scena["text"], cale_imagine, latime=latime, inaltime=inaltime)
     clip = ImageClip(cale_imagine)
     clip = _adapteaza_la_rezolutie(clip, latime, inaltime)
     clip = clip.set_duration(durata)
-    clip = _aplica_efect_ken_burns(clip)
+    if ken_burns:
+        # Imaginile AI sunt statice; zoom-ul lent le da viata (filmarile stock au deja miscare).
+        clip = _aplica_efect_ken_burns(clip)
     return clip, None
 
 
-def _genereaza_clipuri_subtitrare(cuvinte: list[dict], latime: int, inaltime: int, folder_temp: str) -> list:
+def _incarca_intro(latime: int, inaltime: int):
     """
-    Construieste subtitrarile in stil karaoke: cuvintele sunt afisate in grupuri,
-    iar pentru fiecare cuvant generam un clip separat in care DOAR cuvantul
-    vorbit in acel moment e evidentiat (galben), sincronizat pe timestamp-ul lui.
+    Cauta primul fisier video din assets/video/ si il pregateste ca intro,
+    redimensionat la rezolutia video-ului (pastrandu-i audio-ul propriu).
+    Returneaza (clip, clip_brut) sau (None, None) daca nu exista niciun intro.
+    """
+    if not _FOLDER_INTRO.exists():
+        return None, None
+    fisiere = [f for f in sorted(_FOLDER_INTRO.iterdir()) if f.suffix.lower() in _EXTENSII_VIDEO]
+    if not fisiere:
+        return None, None
+
+    clip_brut = VideoFileClip(str(fisiere[0]))
+    clip = _adapteaza_la_rezolutie(clip_brut, latime, inaltime)
+    return clip, clip_brut
+
+
+def _genereaza_clipuri_subtitrare(
+    cuvinte: list[dict], latime: int, inaltime: int, folder_temp: str, karaoke: bool
+) -> list:
+    """
+    Construieste subtitrarile, afisate in grupuri de cate CUVINTE_PER_SUBTITRARE.
+
+    Daca 'karaoke' e True (shorts): pentru fiecare cuvant generam un clip in care
+    DOAR cuvantul vorbit acum e evidentiat (galben) - efect dinamic, dar costa un
+    clip per cuvant.
+
+    Daca 'karaoke' e False (video-uri lungi): un singur clip STATIC per grup (fara
+    evidentiere) - de ~4 ori mai putine clipuri, esential ca randarea unui video de
+    10+ minute sa nu dureze o vesnicie / sa nu depaseasca limita CI.
     """
     clipuri = []
     for index_grup, start_grup in enumerate(range(0, len(cuvinte), CUVINTE_PER_SUBTITRARE)):
         grup = cuvinte[start_grup: start_grup + CUVINTE_PER_SUBTITRARE]
         texte_grup = [c["text"] for c in grup]
+
+        if not karaoke:
+            cale_png = os.path.join(folder_temp, f"subtitlu_{index_grup}.png")
+            deseneaza_subtitlu_karaoke(texte_grup, -1, latime, inaltime, cale_png)
+            start = grup[0]["start"]
+            sfarsit = grup[-1]["end"]
+            clipuri.append(
+                ImageClip(cale_png).set_start(start).set_duration(max(sfarsit - start, 0.3))
+            )
+            continue
 
         for index_in_grup, cuvant in enumerate(grup):
             cale_png = os.path.join(folder_temp, f"subtitlu_{index_grup}_{index_in_grup}.png")
@@ -220,6 +267,7 @@ def construieste_video(
     tip_video: str,
     cale_output: str,
     categorie: str = "",
+    cu_intro: bool = False,
 ) -> None:
     """
     Functia principala: primeste scenele brute (lista de {"text",
@@ -227,10 +275,18 @@ def construieste_video(
     generat, lista de cuvinte cu timestamp (din src.tts.genereaza_voiceover),
     tipul de video si categoria, si scrie fisierul video final (.mp4) la
     'cale_output'. 'categorie' decide daca scenele pot folosi stock footage
-    real (vezi CATEGORII_PERMISE_STOCK) sau doar imagini AI.
+    real (vezi CATEGORII_PERMISE_STOCK) sau doar imagini AI. Daca 'cu_intro'
+    e True si exista un intro in assets/video/, acesta e adaugat la inceput.
+
+    Efectele "bogate" (subtitrari karaoke per-cuvant + zoom Ken Burns) se aplica
+    DOAR la shorts, unde scriptul e scurt (~150 cuvinte) si randarea e rapida. La
+    video-urile lungi (top5/long, ~1500 cuvinte) acestea ar genera mii de clipuri
+    si transformari per-cadru, depasind limita de timp - acolo folosim subtitrari
+    grupate statice si imagini fara zoom (dar pastram tranzitiile + stock footage).
     """
     latime, inaltime = REZOLUTII[tip_video]
     permite_stock = categorie in CATEGORII_PERMISE_STOCK
+    efecte_bogate = tip_video == "short"
     audio = AudioFileClip(cale_audio)
     durata_audio = audio.duration
 
@@ -247,7 +303,8 @@ def construieste_video(
         for i, (scena, durata) in enumerate(zip(scene, durate_scene)):
             cale_temp = os.path.join(folder_temp, f"scena_{i}")
             clip, clip_brut = _incarca_clip_scena(
-                scena, durata + DURATA_TRANZITIE, latime, inaltime, cale_temp, permite_stock
+                scena, durata + DURATA_TRANZITIE, latime, inaltime, cale_temp,
+                permite_stock, ken_burns=efecte_bogate,
             )
             clipuri_imagine.append(clip)
             if clip_brut is not None:
@@ -262,12 +319,21 @@ def construieste_video(
         )
 
         # 2. Genereaza clipurile de subtitrare, sincronizate pe cuvinte
-        clipuri_subtitrare = _genereaza_clipuri_subtitrare(cuvinte, latime, inaltime, folder_temp)
+        clipuri_subtitrare = _genereaza_clipuri_subtitrare(
+            cuvinte, latime, inaltime, folder_temp, karaoke=efecte_bogate
+        )
 
         # 3. Combina imaginile + subtitrarile + audio-ul (voce + muzica de fundal)
         audio_final = adauga_muzica_fundal(audio)
         video_final = CompositeVideoClip([video_imagini, *clipuri_subtitrare])
         video_final = video_final.set_audio(audio_final).set_duration(durata_audio)
+
+        # 4. Optional: adauga intro-ul de canal la inceput (doar pe video-urile lungi)
+        intro_brut = None
+        if cu_intro:
+            intro_clip, intro_brut = _incarca_intro(latime, inaltime)
+            if intro_clip is not None:
+                video_final = concatenate_videoclips([intro_clip, video_final], method="compose")
 
         try:
             video_final.write_videofile(
@@ -284,3 +350,5 @@ def construieste_video(
             # TemporaryDirectory pica la cleanup cu PermissionError.
             for clip_brut in clipuri_video_brute:
                 clip_brut.close()
+            if intro_brut is not None:
+                intro_brut.close()

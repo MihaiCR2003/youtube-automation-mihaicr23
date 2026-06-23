@@ -9,8 +9,17 @@ from src.config import GEMINI_API_KEY
 genai.configure(api_key=GEMINI_API_KEY)
 
 # gemini-3.1-flash-lite are o limita gratuita zilnica mare (~1000 cereri/zi),
-# fata de doar 20/zi cat are gemini-2.5-flash - asa evitam eroarea 429 "quota exceeded".
-_MODEL_NAME = "gemini-3.1-flash-lite"
+# fata de doar 20/zi cat are gemini-2.5-flash - asa evitam eroarea 429 "quota exceeded"
+# pentru shorts-urile frecvente (3/zi) + comenzile manuale /video.
+_MODEL_IMPLICIT = "gemini-3.1-flash-lite"
+
+# Formatul TOP 5 (10 min) ruleaza o singura data pe zi, deci isi permite un model
+# mai puternic: gemini-3.1-flash-lite se opreste prea devreme (~900 cuvinte) la
+# scripturile lungi, pe cand gemini-2.5-flash atinge fiabil ~1500 cuvinte. Limita
+# lui de 20/zi e irelevanta la 1 video/zi.
+_MODEL_DUPA_TIP = {
+    "top5": "gemini-2.5-flash",
+}
 
 _NICHE_DESCRIERE = (
     "unsolved mysteries, untold stories, fascinating history, "
@@ -35,7 +44,20 @@ NARRATOR VOICE AND PERSONALITY (apply this to EVERY script):
 _LUNGIME_DUPA_TIP = {
     "short": "between 130 and 160 words (for a video under 60 seconds)",
     "long": "between 2200 and 2800 words (for a 15-20 minute video)",
+    "top5": "between 1400 and 1700 words (for a ~10 minute video)",
 }
+
+# Instructiuni de structura specifice formatului TOP 5 (countdown)
+_REGULI_TOP5 = """
+TOP 5 FORMAT (this video MUST be a countdown list):
+- The "titlu" MUST start with "TOP 5 " (e.g. "TOP 5 Most Mysterious Things Found in the Ocean").
+- Structure the narration as: a short gripping intro that teases the list, then a
+  countdown from number 5 down to number 1, then a brief closing line.
+- Clearly announce each entry in the narration ("Number 5...", "Number 4...", etc.),
+  with number 1 being the most shocking/impressive of the list.
+- Each entry gets several sentences: what it is, why it is mysterious/amazing, a
+  vivid concrete detail. Keep the dramatic narrator voice throughout.
+"""
 
 
 def _construieste_prompt(tip_video: str, idei_de_evitat: list[str], idee_fortata: str | None) -> str:
@@ -51,14 +73,19 @@ def _construieste_prompt(tip_video: str, idei_de_evitat: list[str], idee_fortata
             f"this list of already-used topics:\n{idei_text}"
         )
 
+    reguli_format = _REGULI_TOP5 if tip_video == "top5" else ""
+
     return f"""
 You are a viral YouTube content writer for a channel about {_NICHE_DESCRIERE}.
 Write everything in ENGLISH only.
 {_PERSONA}
+{reguli_format}
 STRICT RULES:
 - Never write about weather forecasts or mundane daily-life topics.
 {regula_subiect}
-- The script length must be {lungime}.
+- The script length must be {lungime}. This is a HARD REQUIREMENT: keep writing
+  enough scene entries to reach this word count. Do NOT stop early or summarize -
+  expand each point with vivid detail until the total narration hits the target.
 - The script must be written for voice narration (natural spoken English, no stage directions, no markdown).
 - The title must be curiosity-driven and clickable, but NOT misleading or false.
 
@@ -110,26 +137,34 @@ def genereaza_idee_si_script(
     va fi generat exact pe baza acestei idei, ignorand anti-repetarea.
     """
     prompt = _construieste_prompt(tip_video, idei_de_evitat, idee_fortata)
+    model = genai.GenerativeModel(_MODEL_DUPA_TIP.get(tip_video, _MODEL_IMPLICIT))
 
-    model = genai.GenerativeModel(_MODEL_NAME)
-    raspuns = model.generate_content(
-        prompt,
-        generation_config=genai.GenerationConfig(response_mime_type="application/json"),
-    )
+    # Modelele "cu gandire" (gemini-2.5-flash) consuma o parte din bugetul de
+    # tokeni inainte de output - ridicam plafonul ca JSON-ul lung (top5/long) sa
+    # nu fie taiat la mijloc. Daca totusi vine trunchiat, reincercam o data.
+    config = genai.GenerationConfig(response_mime_type="application/json", max_output_tokens=32768)
 
-    date = json.loads(raspuns.text)
+    ultima_eroare = None
+    for _ in range(2):
+        raspuns = model.generate_content(prompt, generation_config=config)
+        try:
+            date = json.loads(raspuns.text)
+        except json.JSONDecodeError as eroare:
+            ultima_eroare = eroare  # raspuns trunchiat/malformat - reincercam
+            continue
 
-    # Validare minimala a campurilor obligatorii, ca sa prindem erori devreme si clar
-    campuri_necesare = ["idee_subiect", "categorie", "titlu", "descriere", "hashtags", "scene"]
-    for camp in campuri_necesare:
-        if camp not in date:
-            raise ValueError(f"Gemini nu a returnat campul obligatoriu '{camp}'. Raspuns primit: {date}")
-    for scena in date["scene"]:
-        if "text" not in scena or "cuvinte_cheie_vizuale" not in scena:
-            raise ValueError(f"O scena nu are 'text'/'cuvinte_cheie_vizuale'. Raspuns primit: {date}")
+        # Validare minimala a campurilor obligatorii, ca sa prindem erori devreme si clar
+        campuri_necesare = ["idee_subiect", "categorie", "titlu", "descriere", "hashtags", "scene"]
+        if any(camp not in date for camp in campuri_necesare):
+            ultima_eroare = ValueError(f"Lipsesc campuri obligatorii. Raspuns: {date}")
+            continue
+        if any("text" not in s or "cuvinte_cheie_vizuale" not in s for s in date["scene"]):
+            ultima_eroare = ValueError(f"O scena nu are 'text'/'cuvinte_cheie_vizuale'. Raspuns: {date}")
+            continue
 
-    # script_text (textul complet, folosit pentru voiceover si salvare in Supabase)
-    # se construieste din scenele individuale, ca sa nu existe doua surse de adevar.
-    date["script_text"] = " ".join(scena["text"] for scena in date["scene"])
+        # script_text (textul complet, folosit pentru voiceover si salvare in Supabase)
+        # se construieste din scenele individuale, ca sa nu existe doua surse de adevar.
+        date["script_text"] = " ".join(scena["text"] for scena in date["scene"])
+        return date
 
-    return date
+    raise RuntimeError(f"Gemini nu a returnat un JSON valid dupa 2 incercari: {ultima_eroare}")

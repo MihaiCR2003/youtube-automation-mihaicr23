@@ -8,6 +8,7 @@ on:
   schedule:
     - cron: "0 5 * * *"   # 08:00 Bucuresti -> short
     - cron: "0 9 * * *"   # 12:00 Bucuresti -> short
+    - cron: "0 10 * * *"  # 13:00 Bucuresti -> TOP 5 (~10 min)
     - cron: "0 13 * * *"  # 16:00 Bucuresti -> short
     - cron: "0 18 * * *"  # 21:00 Bucuresti -> long
   workflow_dispatch: {}    # permite rulare manuala din tab-ul "Actions" pe GitHub
@@ -15,7 +16,7 @@ on:
 jobs:
   genereaza-video:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 120  # margine pentru video-urile lungi (TOP 5 ~10 min, long ~15-20 min)
     steps:
       - uses: actions/checkout@v4
 
@@ -33,6 +34,7 @@ jobs:
           case "$ora" in
             05:*) echo "tip=short" >> "$GITHUB_OUTPUT"; echo "ora=08:00" >> "$GITHUB_OUTPUT" ;;
             09:*) echo "tip=short" >> "$GITHUB_OUTPUT"; echo "ora=12:00" >> "$GITHUB_OUTPUT" ;;
+            10:*) echo "tip=top5"  >> "$GITHUB_OUTPUT"; echo "ora=13:00" >> "$GITHUB_OUTPUT" ;;
             13:*) echo "tip=short" >> "$GITHUB_OUTPUT"; echo "ora=16:00" >> "$GITHUB_OUTPUT" ;;
             18:*) echo "tip=long"  >> "$GITHUB_OUTPUT"; echo "ora=21:00" >> "$GITHUB_OUTPUT" ;;
             *)    echo "tip=short" >> "$GITHUB_OUTPUT"; echo "ora=manual" >> "$GITHUB_OUTPUT" ;;

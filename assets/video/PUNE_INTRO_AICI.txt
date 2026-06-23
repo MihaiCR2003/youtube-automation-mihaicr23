@@ -1,0 +1,11 @@
+Pune aici UN fisier video cu intro-ul canalului (ex: intro.mp4).
+
+- Se foloseste DOAR pe video-urile lungi (TOP 5 de la 13:00 si long-ul de
+  la 21:00), adaugat automat la inceputul video-ului, cu audio-ul lui propriu.
+- Recomandat: scurt (3-6 secunde), rezolutie 1920x1080 (16:9). Daca are alt
+  raport, va fi redimensionat/decupat ca sa umple ecranul.
+- Daca exista mai multe fisiere video aici, se foloseste primul (alfabetic).
+- Daca folderul e gol, video-urile se fac fara intro (fara eroare).
+
+Acest fisier .txt e doar un placeholder, ca folderul sa existe in git -
+poate fi sters dupa ce adaugi intro-ul.

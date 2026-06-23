@@ -58,9 +58,15 @@ def genereaza_si_posteaza(tip_video: str, ora_postarii: str = "", idee_manuala: 
         cale_audio = os.path.join(folder_temp, "voce.mp3")
         cale_video = os.path.join(folder_temp, "video.mp4")
 
+        # 'short' e singurul format vertical; 'long' si 'top5' sunt lungi (orizontale,
+        # cu intro de canal si thumbnail custom). In Supabase pastram doar 'short'/'long'
+        # (coloana tip_video accepta doar aceste valori), dar titlul TOP 5 le distinge clar.
+        este_lung = tip_video != "short"
+
         cuvinte = genereaza_voiceover(date["script_text"], cale_audio)
         construieste_video(
-            date["scene"], cale_audio, cuvinte, tip_video, cale_video, categorie=date["categorie"]
+            date["scene"], cale_audio, cuvinte, tip_video, cale_video,
+            categorie=date["categorie"], cu_intro=este_lung,
         )
 
         rand_db = salveaza_video(
@@ -68,14 +74,14 @@ def genereaza_si_posteaza(tip_video: str, ora_postarii: str = "", idee_manuala: 
             idee_subiect=date["idee_subiect"],
             categorie=date["categorie"],
             script_text=date["script_text"],
-            tip_video=tip_video,
+            tip_video="long" if este_lung else "short",
             ora_postarii=ora_postarii,
             generat_manual=idee_manuala is not None,
         )
 
         video_id = uploadeaza_video(cale_video, date["titlu"], date["descriere"], date["hashtags"], tip_video)
 
-        if tip_video == "long":
+        if este_lung:
             cale_thumbnail = os.path.join(folder_temp, "thumbnail.png")
             genereaza_thumbnail(date["titlu"], date["script_text"][:200], cale_thumbnail)
             seteaza_thumbnail(video_id, cale_thumbnail)
@@ -90,7 +96,7 @@ def genereaza_si_posteaza(tip_video: str, ora_postarii: str = "", idee_manuala: 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--tip", choices=["short", "long"], required=True)
+    parser.add_argument("--tip", choices=["short", "long", "top5"], required=True)
     parser.add_argument("--ora", default="")
     argumente = parser.parse_args()
 
