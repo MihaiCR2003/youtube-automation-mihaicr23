@@ -1,0 +1,49 @@
+name: Video SHORT (YouTube Shorts)
+
+# Orele cron sunt in UTC. Bucuresti = UTC+3 vara (EEST) / UTC+2 iarna (EET).
+# Folosim offset-ul de vara (UTC+3); iarna postarile vor fi cu o ora mai tarziu.
+on:
+  schedule:
+    - cron: "0 5 * * *"   # 08:00 Bucuresti
+    - cron: "0 9 * * *"   # 12:00 Bucuresti
+    - cron: "0 13 * * *"  # 16:00 Bucuresti
+  workflow_dispatch: {}    # buton de rulare manuala in tab-ul "Actions"
+
+jobs:
+  genereaza-short:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instaleaza dependintele Python
+        run: pip install -r requirements.txt
+
+      - name: Determina ora postarii (UTC -> Bucuresti)
+        id: slot
+        run: |
+          ora=$(date -u +%H:%M)
+          case "$ora" in
+            05:*) echo "ora=08:00" >> "$GITHUB_OUTPUT" ;;
+            09:*) echo "ora=12:00" >> "$GITHUB_OUTPUT" ;;
+            13:*) echo "ora=16:00" >> "$GITHUB_OUTPUT" ;;
+            *)    echo "ora=manual" >> "$GITHUB_OUTPUT" ;;
+          esac
+
+      - name: Genereaza si posteaza short-ul
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+          PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+        run: python main.py --tip short --ora "${{ steps.slot.outputs.ora }}"

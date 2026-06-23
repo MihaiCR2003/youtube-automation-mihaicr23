@@ -51,7 +51,12 @@ Aceste două valori le vei pune mai târziu fie în fișierul `.env` (testare lo
 ├── main.py                  # (Etapa 5) Orchestratorul principal
 └── .github/
     └── workflows/
-        └── main.yml         # (Etapa 5) Cron job-ul care rulează main.py
+        ├── short.yml        # Cron shorts (08:00 / 12:00 / 16:00)
+        ├── top5.yml         # Cron TOP 5 (13:00)
+        ├── long.yml         # Cron video lung (21:00)
+        ├── telegram.yml     # Verifica comenzile /short /top5 /long (la 5 min)
+        ├── stats.yml        # Statistici zilnice pe Telegram
+        └── reauth_reminder.yml  # Reminder reautorizare YouTube
 ```
 
 ### Cum testezi local (opțional, dar recomandat)
@@ -97,14 +102,24 @@ Module de cod adăugate la această etapă:
 
 Module de cod adăugate la această etapă:
 - [`main.py`](main.py) — orchestratorul: generează idee+script+voce+imagini+video și îl încarcă pe YouTube
-- [`src/telegram_bot.py`](src/telegram_bot.py) — trimite notificări și citește comenzile `/video [idee]`
+- [`src/telegram_bot.py`](src/telegram_bot.py) — trimite notificări și citește comenzile manuale
 - [`check_telegram.py`](check_telegram.py) — verifică periodic comenzi noi pe Telegram (rulat de `telegram.yml`)
 - [`src/youtube_stats.py`](src/youtube_stats.py) + [`stats.py`](stats.py) — trimite zilnic statisticile canalului
-- [`.github/workflows/main.yml`](.github/workflows/main.yml) — cron la 08:00 / 12:00 / 16:00 (shorts) și 21:00 (long), ora României
-- [`.github/workflows/telegram.yml`](.github/workflows/telegram.yml) — verifică comenzi noi la fiecare 5 minute
-- [`.github/workflows/stats.yml`](.github/workflows/stats.yml) — trimite statisticile o dată pe zi
 
-**Notă despre ora de vară/iarnă:** cron-ul GitHub Actions rulează fix în UTC și nu se ajustează automat. Orele din `main.yml` sunt calculate pentru ora de vară a României (UTC+3); iarna, postările vor fi cu o oră mai târziu decât cele dorite (09:00/13:00/17:00/22:00 în loc de 08:00/12:00/16:00/21:00). E o limitare cunoscută, acceptabilă pentru acest proiect.
+**Comenzi Telegram manuale** (opțional cu o idee după comandă; fără idee = subiect ales automat):
+- `/short [idee]` — video scurt vertical (YouTube Shorts)
+- `/top5 [idee]` — video TOP 5 (5-6 min, orizontal)
+- `/long [idee]` — video lung 15-20 min (orizontal)
+- `/video [idee]` — alias pentru `/short`
+
+**Workflow-uri GitHub Actions** (fiecare cu buton de rulare manuală în tab-ul *Actions*):
+- [`short.yml`](.github/workflows/short.yml) — cron 08:00 / 12:00 / 16:00 (ora României)
+- [`top5.yml`](.github/workflows/top5.yml) — cron 13:00
+- [`long.yml`](.github/workflows/long.yml) — cron 21:00
+- [`telegram.yml`](.github/workflows/telegram.yml) — verifică comenzile manuale la fiecare 5 minute
+- [`stats.yml`](.github/workflows/stats.yml) — statistici o dată pe zi
+
+**Notă despre ora de vară/iarnă:** cron-ul GitHub Actions rulează fix în UTC și nu se ajustează automat. Orele din workflow-uri sunt calculate pentru ora de vară a României (UTC+3); iarna, postările vor fi cu o oră mai târziu decât cele dorite (09:00/13:00/17:00/22:00 în loc de 08:00/12:00/16:00/21:00). E o limitare cunoscută, acceptabilă pentru acest proiect.
 
 **Notă despre scope YouTube:** am extins permisiunile OAuth cu `youtube.readonly` (necesar pentru statistici). Dacă ai generat `YOUTUBE_REFRESH_TOKEN` înainte de această etapă, trebuie să rulezi din nou `python scripts/get_youtube_token.py`.
 
@@ -128,7 +143,7 @@ YOUTUBE_REFRESH_TOKEN
 Valorile sunt cele din `.env`-ul tău local (vezi pașii anteriori pentru cum le obții pe fiecare).
 
 **Sistemul este complet funcțional și testat end-to-end**, inclusiv în CI (GitHub Actions), nu doar local:
-- `main.yml` a generat și încărcat public un video pe canal direct din GitHub Actions
+- workflow-ul de generare a creat și încărcat public un video pe canal direct din GitHub Actions
 - `stats.yml` a trimis statisticile canalului pe Telegram din GitHub Actions
 - comanda `/video [idee]` din Telegram a fost procesată corect prin `check_telegram.py`
 

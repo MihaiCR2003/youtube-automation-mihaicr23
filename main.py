@@ -2,8 +2,8 @@
 Orchestratorul principal: genereaza un video complet (idee + script + voce +
 imagini + subtitrari) si il incarca pe YouTube.
 
-Este apelat fie de cron-ul programat la cele 4 ore fixe (vezi
-.github/workflows/main.yml), fie manual prin comanda /video din Telegram
+Este apelat fie de workflow-urile programate per tip (short.yml / top5.yml /
+long.yml), fie manual prin comenzile /short, /top5, /long din Telegram
 (vezi check_telegram.py).
 """
 import argparse
