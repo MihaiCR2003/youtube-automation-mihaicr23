@@ -8,7 +8,7 @@ from src.config import GEMINI_API_KEY
 
 genai.configure(api_key=GEMINI_API_KEY)
 
-_MODEL_NAME = "gemini-2.5-flash"
+_MODEL_NAME = "gemini-3.5-flash"
 
 _NICHE_DESCRIERE = (
     "unsolved mysteries, untold stories, fascinating history, "
