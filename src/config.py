@@ -35,9 +35,10 @@ YOUTUBE_CLIENT_ID = os.environ.get("YOUTUBE_CLIENT_ID", "")
 YOUTUBE_CLIENT_SECRET = os.environ.get("YOUTUBE_CLIENT_SECRET", "")
 YOUTUBE_REFRESH_TOKEN = os.environ.get("YOUTUBE_REFRESH_TOKEN", "")
 
-# Optionala - daca nu e setata, scenele folosesc doar imagini AI (Pollinations),
-# fara mix cu stock footage real (vezi src/stock_footage.py).
+# Optionale - daca niciuna nu e setata, scenele folosesc doar imagini AI
+# (Pollinations), fara mix cu stock footage real (vezi src/stock_footage.py).
 PEXELS_API_KEY = os.environ.get("PEXELS_API_KEY", "")
+PIXABAY_API_KEY = os.environ.get("PIXABAY_API_KEY", "")
 
 # Orele fixe de postare (format 24h, ora UTC va fi calculată separat în workflow)
 ORE_POSTARE = ["08:00", "12:00", "16:00", "21:00"]
