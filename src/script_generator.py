@@ -8,7 +8,9 @@ from src.config import GEMINI_API_KEY
 
 genai.configure(api_key=GEMINI_API_KEY)
 
-_MODEL_NAME = "gemini-3.5-flash"
+# gemini-3.1-flash-lite are o limita gratuita zilnica mare (~1000 cereri/zi),
+# fata de doar 20/zi cat are gemini-2.5-flash - asa evitam eroarea 429 "quota exceeded".
+_MODEL_NAME = "gemini-3.1-flash-lite"
 
 _NICHE_DESCRIERE = (
     "unsolved mysteries, untold stories, fascinating history, "
