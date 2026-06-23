@@ -3,6 +3,7 @@ Genereaza ideea, titlul, descrierea si scriptul complet al unui video, folosind 
 """
 import json
 import google.generativeai as genai
+from google.api_core.exceptions import ResourceExhausted
 
 from src.config import GEMINI_API_KEY
 
@@ -44,7 +45,7 @@ NARRATOR VOICE AND PERSONALITY (apply this to EVERY script):
 _LUNGIME_DUPA_TIP = {
     "short": "between 130 and 160 words (for a video under 60 seconds)",
     "long": "between 2200 and 2800 words (for a 15-20 minute video)",
-    "top5": "between 1400 and 1700 words (for a ~10 minute video)",
+    "top5": "between 900 and 1100 words (for a 5-6 minute video)",
 }
 
 # Instructiuni de structura specifice formatului TOP 5 (countdown)
@@ -137,34 +138,46 @@ def genereaza_idee_si_script(
     va fi generat exact pe baza acestei idei, ignorand anti-repetarea.
     """
     prompt = _construieste_prompt(tip_video, idei_de_evitat, idee_fortata)
-    model = genai.GenerativeModel(_MODEL_DUPA_TIP.get(tip_video, _MODEL_IMPLICIT))
 
     # Modelele "cu gandire" (gemini-2.5-flash) consuma o parte din bugetul de
     # tokeni inainte de output - ridicam plafonul ca JSON-ul lung (top5/long) sa
     # nu fie taiat la mijloc. Daca totusi vine trunchiat, reincercam o data.
     config = genai.GenerationConfig(response_mime_type="application/json", max_output_tokens=32768)
 
+    # Lista de modele de incercat, in ordine: modelul preferat pentru acest tip,
+    # apoi modelul implicit (lite) ca fallback. Daca modelul preferat e epuizat
+    # (eroare 429 quota), cadem pe lite - video-ul se face oricum, doar putin mai
+    # scurt. Eliminam duplicatele pastrand ordinea.
+    modele = [_MODEL_DUPA_TIP.get(tip_video, _MODEL_IMPLICIT), _MODEL_IMPLICIT]
+    modele = list(dict.fromkeys(modele))
+
     ultima_eroare = None
-    for _ in range(2):
-        raspuns = model.generate_content(prompt, generation_config=config)
-        try:
-            date = json.loads(raspuns.text)
-        except json.JSONDecodeError as eroare:
-            ultima_eroare = eroare  # raspuns trunchiat/malformat - reincercam
-            continue
+    for nume_model in modele:
+        model = genai.GenerativeModel(nume_model)
+        for _ in range(2):
+            try:
+                raspuns = model.generate_content(prompt, generation_config=config)
+            except ResourceExhausted as eroare:
+                ultima_eroare = eroare  # quota epuizata pe acest model - trecem la urmatorul
+                break
+            try:
+                date = json.loads(raspuns.text)
+            except json.JSONDecodeError as eroare:
+                ultima_eroare = eroare  # raspuns trunchiat/malformat - reincercam
+                continue
 
-        # Validare minimala a campurilor obligatorii, ca sa prindem erori devreme si clar
-        campuri_necesare = ["idee_subiect", "categorie", "titlu", "descriere", "hashtags", "scene"]
-        if any(camp not in date for camp in campuri_necesare):
-            ultima_eroare = ValueError(f"Lipsesc campuri obligatorii. Raspuns: {date}")
-            continue
-        if any("text" not in s or "cuvinte_cheie_vizuale" not in s for s in date["scene"]):
-            ultima_eroare = ValueError(f"O scena nu are 'text'/'cuvinte_cheie_vizuale'. Raspuns: {date}")
-            continue
+            # Validare minimala a campurilor obligatorii, ca sa prindem erori devreme si clar
+            campuri_necesare = ["idee_subiect", "categorie", "titlu", "descriere", "hashtags", "scene"]
+            if any(camp not in date for camp in campuri_necesare):
+                ultima_eroare = ValueError(f"Lipsesc campuri obligatorii. Raspuns: {date}")
+                continue
+            if any("text" not in s or "cuvinte_cheie_vizuale" not in s for s in date["scene"]):
+                ultima_eroare = ValueError(f"O scena nu are 'text'/'cuvinte_cheie_vizuale'. Raspuns: {date}")
+                continue
 
-        # script_text (textul complet, folosit pentru voiceover si salvare in Supabase)
-        # se construieste din scenele individuale, ca sa nu existe doua surse de adevar.
-        date["script_text"] = " ".join(scena["text"] for scena in date["scene"])
-        return date
+            # script_text (textul complet, folosit pentru voiceover si salvare in Supabase)
+            # se construieste din scenele individuale, ca sa nu existe doua surse de adevar.
+            date["script_text"] = " ".join(scena["text"] for scena in date["scene"])
+            return date
 
-    raise RuntimeError(f"Gemini nu a returnat un JSON valid dupa 2 incercari: {ultima_eroare}")
+    raise RuntimeError(f"Gemini nu a returnat un JSON valid: {ultima_eroare}")

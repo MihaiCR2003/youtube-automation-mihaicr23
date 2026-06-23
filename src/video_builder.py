@@ -295,28 +295,34 @@ def construieste_video(
     durate_scene = _calculeaza_durate_scene(scene, durata_audio)
 
     with tempfile.TemporaryDirectory() as folder_temp:
-        # 1. Pentru fiecare scena, incearca un clip stock video real, altfel genereaza o imagine AI
-        #    Adaugam DURATA_TRANZITIE la fiecare clip, ca sa avem suficient "material" pentru
-        #    crossfade-ul dintre scene fara sa scurtam video-ul final sub durata audio-ului.
+        # 1. Pentru fiecare scena, incearca un clip stock video real, altfel genereaza o imagine AI.
+        #    Crossfade-ul (compose) e SCUMP la randare (~2.6x mai lent) - il folosim doar la shorts
+        #    (scurte, randare rapida). La video-urile lungi folosim taieturi simple (chain), altfel
+        #    un video de 5-6 min ar dura ~1h de randat. Bufferul DURATA_TRANZITIE e necesar doar
+        #    pentru crossfade (suprapunere), deci doar la shorts.
+        buffer = DURATA_TRANZITIE if efecte_bogate else 0
         clipuri_imagine = []
         clipuri_video_brute = []
         for i, (scena, durata) in enumerate(zip(scene, durate_scene)):
             cale_temp = os.path.join(folder_temp, f"scena_{i}")
             clip, clip_brut = _incarca_clip_scena(
-                scena, durata + DURATA_TRANZITIE, latime, inaltime, cale_temp,
+                scena, durata + buffer, latime, inaltime, cale_temp,
                 permite_stock, ken_burns=efecte_bogate,
             )
             clipuri_imagine.append(clip)
             if clip_brut is not None:
                 clipuri_video_brute.append(clip_brut)
 
-        # Tranzitii fade intre scene consecutive (prima scena nu are fade la intrare)
-        clipuri_cu_tranzitie = [clipuri_imagine[0]] + [
-            clip.crossfadein(DURATA_TRANZITIE) for clip in clipuri_imagine[1:]
-        ]
-        video_imagini = concatenate_videoclips(
-            clipuri_cu_tranzitie, method="compose", padding=-DURATA_TRANZITIE
-        )
+        if efecte_bogate:
+            # Tranzitii fade intre scene consecutive (prima scena nu are fade la intrare)
+            clipuri_cu_tranzitie = [clipuri_imagine[0]] + [
+                clip.crossfadein(DURATA_TRANZITIE) for clip in clipuri_imagine[1:]
+            ]
+            video_imagini = concatenate_videoclips(
+                clipuri_cu_tranzitie, method="compose", padding=-DURATA_TRANZITIE
+            )
+        else:
+            video_imagini = concatenate_videoclips(clipuri_imagine, method="chain")
 
         # 2. Genereaza clipurile de subtitrare, sincronizate pe cuvinte
         clipuri_subtitrare = _genereaza_clipuri_subtitrare(
@@ -335,6 +341,10 @@ def construieste_video(
             if intro_clip is not None:
                 video_final = concatenate_videoclips([intro_clip, video_final], method="compose")
 
+        # Shorts (scurte) - encoding de calitate; video-urile lungi - preset rapid,
+        # ca encoding-ul sa nu adauge timp inutil la cele cateva minute de material.
+        preset = "medium" if efecte_bogate else "veryfast"
+
         try:
             video_final.write_videofile(
                 cale_output,
@@ -342,6 +352,7 @@ def construieste_video(
                 codec="libx264",
                 audio_codec="aac",
                 threads=4,
+                preset=preset,
                 logger=None,
             )
         finally:
