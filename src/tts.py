@@ -6,16 +6,19 @@ in Etapa 3 (asamblarea video-ului).
 import asyncio
 import edge_tts
 
-# Voce masculina, engleza (SUA), sunet natural.
-# Lista completa de voci disponibile: ruleaza in terminal "edge-tts --list-voices"
-VOCE = "en-US-GuyNeural"
+# Voce masculina engleza (SUA), grava si autoritara - se potriveste tonului
+# intunecat/mister al canalului. Lista completa: "edge-tts --list-voices".
+VOCE = "en-US-ChristopherNeural"
+
+# Ritm putin mai lent, pentru gravitate/suspans la naratiunea dramatica.
+RITM = "-5%"
 
 
 async def _genereaza_async(text: str, cale_audio: str) -> list[dict]:
     """Varianta asincrona (edge-tts functioneaza nativ async)."""
     # 'boundary' trebuie setat explicit pe WordBoundary, altfel edge-tts (v7+)
     # trimite doar evenimente la nivel de propozitie, nu de cuvant.
-    comunicare = edge_tts.Communicate(text, VOCE, boundary="WordBoundary")
+    comunicare = edge_tts.Communicate(text, VOCE, rate=RITM, boundary="WordBoundary")
     cuvinte = []
 
     with open(cale_audio, "wb") as fisier_audio:
