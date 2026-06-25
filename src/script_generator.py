@@ -44,7 +44,8 @@ NARRATOR VOICE AND PERSONALITY (apply this to EVERY script):
 
 # Directia de continut, calibrata pe ce a performat real pe canal: video-ul de
 # top a fost un mister intunecat/ocult ("The Terrifying Secret of the Devil's
-# Bible"), impins de algoritm in Shorts feed. Inclinam spre acel registru.
+# Bible"), impins de algoritm in Shorts feed. Inclinam spre acel registru -
+# DOAR la shorts (acolo a functionat formula); long/top5 raman pe tonul general.
 _DIRECTIE_CONTINUT = """
 CONTENT DIRECTION (what THIS channel's audience responds to most - based on real performance):
 - Strongly favor DARK, eerie, unsettling topics: cursed or forbidden objects, occult
@@ -55,6 +56,12 @@ CONTENT DIRECTION (what THIS channel's audience responds to most - based on real
 - Favor ominous, curiosity-driven words in the title (e.g. "Terrifying", "Cursed",
   "Forbidden", "Sinister", "The Dark Secret of...") - but never clickbait that lies.
 """
+
+# Regula primei imagini (thumbnail-ul de oprire a scroll-ului) - tot doar la shorts.
+_REGULA_PRIMA_IMAGINE = """- The FIRST scene's "cuvinte_cheie_vizuale" is the thumbnail the viewer sees in the
+  very first second - make it an especially STRIKING, ominous, scroll-stopping image,
+  ideally a dramatic face or figure (e.g. "menacing demon face close up dark",
+  "shadowy hooded figure fog", "ancient skull candlelight") that matches the dark mood."""
 
 _LUNGIME_DUPA_TIP = {
     "short": "between 130 and 160 words (for a video under 60 seconds)",
@@ -120,11 +127,16 @@ def _construieste_prompt(
 
     reguli_format = _REGULI_TOP5 if tip_video == "top5" else ""
 
+    # Calibrarea spre intunecat/macabru + prima imagine socanta se aplica DOAR la
+    # shorts (acolo a performat formula); long si top5 raman pe tonul general.
+    directie_continut = _DIRECTIE_CONTINUT if tip_video == "short" else ""
+    regula_prima_imagine = _REGULA_PRIMA_IMAGINE if tip_video == "short" else ""
+
     return f"""
 You are a viral YouTube content writer for a channel about {_NICHE_DESCRIERE}.
 Write everything in ENGLISH only.
 {_PERSONA}
-{_DIRECTIE_CONTINUT}
+{directie_continut}
 {reguli_format}
 {semnal_trend}
 STRICT RULES:
@@ -158,10 +170,7 @@ CRITICAL - THE HOOK (first sentence of the script):
   "waterfall aerial view") - NEVER abstract/narrative words like "mystery",
   "secret", "imagine", character names, or specific historical event names that
   can't literally be filmed today.
-- The FIRST scene's "cuvinte_cheie_vizuale" is the thumbnail the viewer sees in the
-  very first second - make it an especially STRIKING, ominous, scroll-stopping image,
-  ideally a dramatic face or figure (e.g. "menacing demon face close up dark",
-  "shadowy hooded figure fog", "ancient skull candlelight") that matches the dark mood.
+{regula_prima_imagine}
 
 Respond ONLY with a valid JSON object, no markdown formatting, with this exact structure:
 {{
