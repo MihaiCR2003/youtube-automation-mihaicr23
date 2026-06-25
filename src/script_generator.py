@@ -61,18 +61,48 @@ TOP 5 FORMAT (this video MUST be a countdown list):
 """
 
 
-def _construieste_prompt(tip_video: str, idei_de_evitat: list[str], idee_fortata: str | None) -> str:
+def _construieste_semnal_trend(context_trend: dict | None) -> str:
+    """Construieste sectiunea de prompt cu semnalul de trending + ce a performat pe canal."""
+    if not context_trend:
+        return ""
+    trending = context_trend.get("trending") or []
+    proprii = context_trend.get("proprii") or []
+    if not trending and not proprii:
+        return ""
+
+    sectiuni = ["TREND & PERFORMANCE SIGNAL (use to pick an engaging topic; NEVER copy a title):"]
+    if proprii:
+        lista = "\n".join(f"  - {t}" for t in proprii)
+        sectiuni.append(
+            "- Best-performing videos on THIS channel so far - lean HARD into the same kind of "
+            f"subject/style, this is what already earns views here:\n{lista}"
+        )
+    if trending:
+        lista = "\n".join(f"  - {t}" for t in trending)
+        sectiuni.append(
+            "- Currently trending on YouTube (general). If one can plausibly inspire a "
+            "mystery/untold-story/history/curiosity angle, use it; otherwise IGNORE it and pick "
+            f"an evergreen niche topic:\n{lista}"
+        )
+    return "\n".join(sectiuni) + "\n"
+
+
+def _construieste_prompt(
+    tip_video: str, idei_de_evitat: list[str], idee_fortata: str | None, context_trend: dict | None = None
+) -> str:
     """Construieste textul (promptul) trimis catre Gemini, cu toate regulile noastre."""
     lungime = _LUNGIME_DUPA_TIP[tip_video]
 
     if idee_fortata:
         regula_subiect = f'- The video MUST be about this exact topic, given by the channel owner: "{idee_fortata}"'
+        semnal_trend = ""  # ideea e fixata manual, nu mai folosim semnalul de trend
     else:
         idei_text = "\n".join(f"- {idee}" for idee in idei_de_evitat) or "(none yet)"
         regula_subiect = (
             "- The topic must NOT be the same as, or a close variation of, any topic in "
             f"this list of already-used topics:\n{idei_text}"
         )
+        semnal_trend = _construieste_semnal_trend(context_trend)
 
     reguli_format = _REGULI_TOP5 if tip_video == "top5" else ""
 
@@ -81,6 +111,7 @@ You are a viral YouTube content writer for a channel about {_NICHE_DESCRIERE}.
 Write everything in ENGLISH only.
 {_PERSONA}
 {reguli_format}
+{semnal_trend}
 STRICT RULES:
 - Never write about weather forecasts or mundane daily-life topics.
 {regula_subiect}
@@ -128,16 +159,22 @@ Respond ONLY with a valid JSON object, no markdown formatting, with this exact s
 
 
 def genereaza_idee_si_script(
-    tip_video: str, idei_de_evitat: list[str], idee_fortata: str | None = None
+    tip_video: str,
+    idei_de_evitat: list[str],
+    idee_fortata: str | None = None,
+    context_trend: dict | None = None,
 ) -> dict:
     """
     Cere modelului Gemini sa genereze o idee + scriptul complet.
-    'tip_video' trebuie sa fie 'short' sau 'long'.
+    'tip_video' trebuie sa fie 'short', 'long' sau 'top5'.
     'idei_de_evitat' este lista ultimelor subiecte folosite (pentru anti-repetare).
-    'idee_fortata' - daca e specificata (comanda /video din Telegram), scriptul
-    va fi generat exact pe baza acestei idei, ignorand anti-repetarea.
+    'idee_fortata' - daca e specificata (comanda manuala din Telegram), scriptul
+    va fi generat exact pe baza acestei idei, ignorand anti-repetarea si trend-ul.
+    'context_trend' - dict optional {"trending": [...], "proprii": [...]} cu semnal
+    de la YouTube (ce e in trend + ce a performat pe canalul nostru), folosit ca
+    inspiratie la alegerea subiectului (doar cand ideea NU e fixata manual).
     """
-    prompt = _construieste_prompt(tip_video, idei_de_evitat, idee_fortata)
+    prompt = _construieste_prompt(tip_video, idei_de_evitat, idee_fortata, context_trend)
 
     # Modelele "cu gandire" (gemini-2.5-flash) consuma o parte din bugetul de
     # tokeni inainte de output - ridicam plafonul ca JSON-ul lung (top5/long) sa

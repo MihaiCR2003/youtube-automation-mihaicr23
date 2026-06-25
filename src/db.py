@@ -71,6 +71,21 @@ def seteaza_stare(cheie: str, valoare: str) -> None:
     _client.table("bot_state").upsert({"cheie": cheie, "valoare": valoare}).execute()
 
 
+def youtube_id_uri_postate() -> list[str]:
+    """
+    Returneaza ID-urile YouTube ale video-urilor postate de SISTEMUL nostru.
+    Folosit ca sa distingem continutul nostru (din nisa) de eventualul continut
+    vechi/legacy de pe canal (ex: tutoriale de joc), cand analizam ce a performat.
+    """
+    rezultat = (
+        _client.table("videos")
+        .select("youtube_video_id")
+        .eq("status_postat", True)
+        .execute()
+    )
+    return [r["youtube_video_id"] for r in rezultat.data if r.get("youtube_video_id")]
+
+
 def ultimele_idei(limita: int = 20) -> list[str]:
     """Returnează ultimele idei de subiecte folosite, ca să le evităm la generare."""
     rezultat = (

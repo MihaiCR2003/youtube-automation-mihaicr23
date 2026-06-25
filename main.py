@@ -24,24 +24,36 @@ from src.video_builder import construieste_video
 from src.youtube_upload import seteaza_thumbnail, uploadeaza_video
 
 
+def _obtine_context_trend() -> dict | None:
+    """
+    Preia semnalul de la YouTube (ce e in trend + ce a performat pe canalul
+    nostru) pentru a inspira alegerea subiectului. E rezilient: daca API-ul de
+    trend pica din orice motiv, returnam None si generarea continua normal,
+    fara semnal (nu blocam producerea unui video pentru asta).
+    """
+    try:
+        from src.trends import videouri_in_trend, propriile_video_de_top
+        return {"trending": videouri_in_trend(), "proprii": propriile_video_de_top()}
+    except Exception:
+        return None
+
+
 def _genereaza_idee_valida(tip_video: str, idee_manuala: str | None) -> dict:
     """
-    Daca 'idee_manuala' e specificata (comanda /video), scriptul se genereaza
-    direct pe baza acelei idei, ignorand anti-repetarea.
-    Altfel, generam o idee noua: Gemini primeste lista ultimelor idei deja
-    folosite (in prompt) ca sa evite sa le repete, iar 'idee_deja_folosita'
-    e doar o plasa de siguranta pentru cazul (rar) in care genereaza totusi
-    exact aceeasi idee. NU blocam categoria intreaga (mystery/history/etc.) -
-    cu doar 5 categorii posibile si 4 video-uri/zi, un cooldown de 7 zile pe
-    categorie ar bloca aproape mereu totul, fortand retry-uri care epuizeaza
-    rapid cota gratuita Gemini (20 cereri/zi).
+    Daca 'idee_manuala' e specificata (comanda manuala din Telegram), scriptul se
+    genereaza direct pe baza acelei idei, ignorand anti-repetarea si trend-ul.
+    Altfel, generam o idee noua: Gemini primeste semnalul de trend (ce e popular +
+    ce a mers pe canalul nostru) ca inspiratie, plus lista ultimelor idei folosite
+    ca sa nu le repete. 'idee_deja_folosita' e plasa de siguranta pentru cazul
+    (rar) in care genereaza totusi exact aceeasi idee.
     """
     if idee_manuala:
         return genereaza_idee_si_script(tip_video, [], idee_fortata=idee_manuala)
 
     idei_de_evitat = ultimele_idei()
+    context_trend = _obtine_context_trend()
     for _ in range(3):
-        date = genereaza_idee_si_script(tip_video, idei_de_evitat)
+        date = genereaza_idee_si_script(tip_video, idei_de_evitat, context_trend=context_trend)
         if not idee_deja_folosita(date["idee_subiect"]):
             return date
 
