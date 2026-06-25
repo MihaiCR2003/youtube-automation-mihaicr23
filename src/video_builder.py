@@ -30,16 +30,13 @@ from src.subtitles import deseneaza_subtitlu_karaoke
 if not hasattr(Image, "ANTIALIAS"):
     Image.ANTIALIAS = Image.LANCZOS
 
-# Sansa ca o scena sa incerce mai intai un clip video real (Pexels) inainte
-# de a cadea pe o imagine generata AI - adauga variatie vizuala intre scene.
+# Sansa ca o scena sa incerce mai intai un clip video real (Pexels/Pixabay)
+# inainte de a cadea pe o imagine generata AI - adauga variatie vizuala si
+# secvente in miscare. ~50% da un amestec echilibrat imagini AI + footage real.
+# Cautarea se face pe cuvintele-cheie vizuale ale scenei (atmosferice: ceata,
+# ruine, lumanari, furtuni...), iar daca nu se gaseste nimic relevant scena cade
+# automat pe imagine AI - deci footage doar "cand se gaseste ceva potrivit".
 PROBABILITATE_STOCK_FOOTAGE = 0.5
-
-# Stock footage real e folosit DOAR pentru aceste categorii - subiectele de
-# istorie/mister/povesti vechi au nevoie de scene specifice unei epoci, pe
-# care filmari reale moderne nu le pot reda (risc de anacronisme vizuale,
-# ex: o cladire moderna intr-o poveste din 1587). Pentru acelea folosim
-# exclusiv imagini generate AI.
-CATEGORII_PERMISE_STOCK = {"world_event", "curiosity"}
 
 # Durata tranzitiei fade intre scene consecutive (secunde)
 DURATA_TRANZITIE = 0.5
@@ -294,17 +291,16 @@ def construieste_video(
     cuvinte: list[dict],
     tip_video: str,
     cale_output: str,
-    categorie: str = "",
     cu_intro: bool = False,
 ) -> None:
     """
     Functia principala: primeste scenele brute (lista de {"text",
     "cuvinte_cheie_vizuale"} din src.script_generator), fisierul audio deja
     generat, lista de cuvinte cu timestamp (din src.tts.genereaza_voiceover),
-    tipul de video si categoria, si scrie fisierul video final (.mp4) la
-    'cale_output'. 'categorie' decide daca scenele pot folosi stock footage
-    real (vezi CATEGORII_PERMISE_STOCK) sau doar imagini AI. Daca 'cu_intro'
-    e True si exista un intro in assets/video/, acesta e adaugat la inceput.
+    tipul de video, si scrie fisierul video final (.mp4) la 'cale_output'.
+    Fiecare scena poate folosi un clip video real (stock) sau o imagine AI -
+    vezi PROBABILITATE_STOCK_FOOTAGE. Daca 'cu_intro' e True si exista un intro
+    in assets/video/, acesta e adaugat la inceput.
 
     Efectele "bogate" (subtitrari karaoke per-cuvant + zoom Ken Burns) se aplica
     DOAR la shorts, unde scriptul e scurt (~150 cuvinte) si randarea e rapida. La
@@ -313,7 +309,7 @@ def construieste_video(
     grupate statice si imagini fara zoom (dar pastram tranzitiile + stock footage).
     """
     latime, inaltime = REZOLUTII[tip_video]
-    permite_stock = categorie in CATEGORII_PERMISE_STOCK
+    permite_stock = True  # footage real pentru toate temele (fallback pe imagine AI daca nu se gaseste)
     efecte_bogate = tip_video == "short"
     audio = AudioFileClip(cale_audio)
     durata_audio = audio.duration

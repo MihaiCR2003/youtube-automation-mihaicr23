@@ -77,8 +77,7 @@ def genereaza_si_posteaza(tip_video: str, ora_postarii: str = "", idee_manuala: 
 
         cuvinte = genereaza_voiceover(date["script_text"], cale_audio)
         construieste_video(
-            date["scene"], cale_audio, cuvinte, tip_video, cale_video,
-            categorie=date["categorie"], cu_intro=este_lung,
+            date["scene"], cale_audio, cuvinte, tip_video, cale_video, cu_intro=este_lung,
         )
 
         rand_db = salveaza_video(
