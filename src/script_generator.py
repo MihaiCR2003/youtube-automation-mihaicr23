@@ -42,6 +42,20 @@ NARRATOR VOICE AND PERSONALITY (apply this to EVERY script):
 - Never break character with stage directions, labels, or meta-commentary.
 """
 
+# Directia de continut, calibrata pe ce a performat real pe canal: video-ul de
+# top a fost un mister intunecat/ocult ("The Terrifying Secret of the Devil's
+# Bible"), impins de algoritm in Shorts feed. Inclinam spre acel registru.
+_DIRECTIE_CONTINUT = """
+CONTENT DIRECTION (what THIS channel's audience responds to most - based on real performance):
+- Strongly favor DARK, eerie, unsettling topics: cursed or forbidden objects, occult
+  artifacts, sinister history, disturbing disappearances, things that "should not exist".
+  This dark/ominous register is what earns the most views and subscribers here.
+- Keep some variety across videos so it doesn't feel repetitive, but the DEFAULT mood is
+  chilling and ominous, never light, cute or whimsical.
+- Favor ominous, curiosity-driven words in the title (e.g. "Terrifying", "Cursed",
+  "Forbidden", "Sinister", "The Dark Secret of...") - but never clickbait that lies.
+"""
+
 _LUNGIME_DUPA_TIP = {
     "short": "between 130 and 160 words (for a video under 60 seconds)",
     "long": "between 2200 and 2800 words (for a 15-20 minute video)",
@@ -110,6 +124,7 @@ def _construieste_prompt(
 You are a viral YouTube content writer for a channel about {_NICHE_DESCRIERE}.
 Write everything in ENGLISH only.
 {_PERSONA}
+{_DIRECTIE_CONTINUT}
 {reguli_format}
 {semnal_trend}
 STRICT RULES:
@@ -143,6 +158,10 @@ CRITICAL - THE HOOK (first sentence of the script):
   "waterfall aerial view") - NEVER abstract/narrative words like "mystery",
   "secret", "imagine", character names, or specific historical event names that
   can't literally be filmed today.
+- The FIRST scene's "cuvinte_cheie_vizuale" is the thumbnail the viewer sees in the
+  very first second - make it an especially STRIKING, ominous, scroll-stopping image,
+  ideally a dramatic face or figure (e.g. "menacing demon face close up dark",
+  "shadowy hooded figure fog", "ancient skull candlelight") that matches the dark mood.
 
 Respond ONLY with a valid JSON object, no markdown formatting, with this exact structure:
 {{
