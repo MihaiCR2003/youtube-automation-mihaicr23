@@ -4,8 +4,11 @@ voiceover-ul deja generat (Etapa 2) si subtitrari sincronizate pe cuvinte.
 """
 import os
 import random
+import shutil
+import subprocess
 import tempfile
 from pathlib import Path
+import imageio_ffmpeg
 import numpy as np
 from PIL import Image
 from moviepy.editor import (
@@ -202,6 +205,26 @@ def _incarca_clip_scena(
     return clip, None
 
 
+def _normalizeaza_loudness(cale_intrare: str, cale_iesire: str) -> None:
+    """
+    Normalizeaza loudness-ul audio (EBU R128, tinta -14 LUFS ca pe YouTube) cu un
+    pas ffmpeg separat: re-encodam doar audio-ul, video-ul se copiaza (rapid).
+    Daca ffmpeg da eroare din orice motiv, copiem fisierul nemodificat (fallback),
+    ca un video sa nu pice doar din cauza normalizarii.
+    """
+    ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
+    comanda = [
+        ffmpeg, "-y", "-i", cale_intrare,
+        "-af", "loudnorm=I=-14:TP=-1.5:LRA=11",
+        "-c:v", "copy", "-c:a", "aac", "-b:a", "192k",
+        cale_iesire,
+    ]
+    try:
+        subprocess.run(comanda, check=True, capture_output=True)
+    except (subprocess.CalledProcessError, OSError):
+        shutil.copyfile(cale_intrare, cale_iesire)
+
+
 def _incarca_intro(latime: int, inaltime: int):
     """
     Cauta primul fisier video din assets/video/ si il pregateste ca intro,
@@ -350,9 +373,10 @@ def construieste_video(
         # ca encoding-ul sa nu adauge timp inutil la cele cateva minute de material.
         preset = "medium" if efecte_bogate else "veryfast"
 
+        cale_render = os.path.join(folder_temp, "render.mp4")
         try:
             video_final.write_videofile(
-                cale_output,
+                cale_render,
                 fps=24,
                 codec="libx264",
                 audio_codec="aac",
@@ -368,3 +392,9 @@ def construieste_video(
                 clip_brut.close()
             if intro_brut is not None:
                 intro_brut.close()
+
+        # Pas separat: normalizare de loudness (EBU R128, ~-14 LUFS ca pe YouTube),
+        # pentru volum consistent intre video-uri. Re-encodam DOAR audio-ul, video-ul
+        # se copiaza (rapid). Nu se poate face in write_videofile fiindca moviepy
+        # copiaza stream-ul audio (conflict cu filtrul -af).
+        _normalizeaza_loudness(cale_render, cale_output)

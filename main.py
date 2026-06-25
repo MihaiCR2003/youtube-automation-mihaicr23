@@ -95,7 +95,10 @@ def genereaza_si_posteaza(tip_video: str, ora_postarii: str = "", idee_manuala: 
 
         if este_lung:
             cale_thumbnail = os.path.join(folder_temp, "thumbnail.png")
-            genereaza_thumbnail(date["titlu"], date["script_text"][:200], cale_thumbnail)
+            # Fundalul thumbnail-ului foloseste cuvintele-cheie vizuale ale primei
+            # scene (prompt vizual concret), nu textul narat - imagine mai relevanta.
+            prompt_fundal = date["scene"][0]["cuvinte_cheie_vizuale"]
+            genereaza_thumbnail(date["titlu"], prompt_fundal, cale_thumbnail)
             seteaza_thumbnail(video_id, cale_thumbnail)
 
         marcheaza_postat(rand_db["id"], video_id)
