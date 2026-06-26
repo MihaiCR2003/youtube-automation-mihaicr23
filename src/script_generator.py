@@ -47,14 +47,18 @@ NARRATOR VOICE AND PERSONALITY (apply this to EVERY script):
 # Bible"), impins de algoritm in Shorts feed. Inclinam spre acel registru -
 # DOAR la shorts (acolo a functionat formula); long/top5 raman pe tonul general.
 _DIRECTIE_CONTINUT = """
-CONTENT DIRECTION (what THIS channel's audience responds to most - based on real performance):
-- Strongly favor DARK, eerie, unsettling topics: cursed or forbidden objects, occult
-  artifacts, sinister history, disturbing disappearances, things that "should not exist".
-  This dark/ominous register is what earns the most views and subscribers here.
-- Keep some variety across videos so it doesn't feel repetitive, but the DEFAULT mood is
-  chilling and ominous, never light, cute or whimsical.
-- Favor ominous, curiosity-driven words in the title (e.g. "Terrifying", "Cursed",
-  "Forbidden", "Sinister", "The Dark Secret of...") - but never clickbait that lies.
+CONTENT DIRECTION (what THIS channel's audience responds to most - based on REAL view data):
+- The biggest hits were SPECIFIC, real, well-documented mysteries and historical events that
+  actually happened, with real names/places/dates (e.g. Operation Mincemeat - "The Corpse That
+  Fooled Hitler", the Eilean Mor lighthouse vanishing, the U-65 submarine, the Codex Gigas).
+  STRONGLY prefer these over generic, invented-sounding "a cursed object" stories (a cursed
+  painting, a cursed clock, a weeping statue) - those consistently flopped here.
+- Keep the DARK, eerie, ominous mood (disappearances, sinister history, things that should not
+  exist), but anchor it in a concrete REAL case the viewer could look up, never vague fiction.
+- Title craft (this matters a lot): a visceral, concrete noun + a famous or relatable anchor +
+  intrigue. Great: "The Corpse That Fooled Hitler", "The Ghost Lighthouse Where 3 Men Vanished".
+  Weak (avoid): "The Cursed Painting", "The Forbidden Mechanism" - too vague and invented-sounding.
+- Never clickbait that lies - the real story must deliver what the title promises.
 """
 
 # Regula primei imagini (thumbnail-ul de oprire a scroll-ului) - tot doar la shorts.

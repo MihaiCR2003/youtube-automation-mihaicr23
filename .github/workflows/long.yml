@@ -1,9 +1,11 @@
 name: Video LONG (15-20 min)
 
-# 21:00 Bucuresti = 18:00 UTC (vara). O data pe zi.
+# 21:00 Bucuresti = 18:00 UTC (vara). De 2 ori/saptamana (Marti/Sambata).
+# Long-form face ~0 views pe un canal nou fara abonati - il pastram rar, ca
+# si catalog pentru cand creste canalul; energia merge pe Shorts.
 on:
   schedule:
-    - cron: "0 18 * * *"  # 21:00 Bucuresti
+    - cron: "0 18 * * 2,6"  # 21:00 Bucuresti, Marti/Sambata
   workflow_dispatch: {}
 
 jobs:
