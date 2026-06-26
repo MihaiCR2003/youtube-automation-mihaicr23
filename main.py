@@ -32,8 +32,8 @@ def _obtine_context_trend() -> dict | None:
     fara semnal (nu blocam producerea unui video pentru asta).
     """
     try:
-        from src.trends import videouri_in_trend, propriile_video_de_top
-        return {"trending": videouri_in_trend(), "proprii": propriile_video_de_top()}
+        from src.trends import subiecte_hot_nisa, propriile_video_de_top
+        return {"hot_nisa": subiecte_hot_nisa(), "proprii": propriile_video_de_top()}
     except Exception:
         return None
 

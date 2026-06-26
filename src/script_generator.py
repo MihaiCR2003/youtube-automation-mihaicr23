@@ -87,27 +87,27 @@ TOP 5 FORMAT (this video MUST be a countdown list):
 
 
 def _construieste_semnal_trend(context_trend: dict | None) -> str:
-    """Construieste sectiunea de prompt cu semnalul de trending + ce a performat pe canal."""
+    """Construieste sectiunea de prompt cu semnalul: ce merge ACUM in nisa + ce a mers pe canal."""
     if not context_trend:
         return ""
-    trending = context_trend.get("trending") or []
+    hot_nisa = context_trend.get("hot_nisa") or []
     proprii = context_trend.get("proprii") or []
-    if not trending and not proprii:
+    if not hot_nisa and not proprii:
         return ""
 
-    sectiuni = ["TREND & PERFORMANCE SIGNAL (use to pick an engaging topic; NEVER copy a title):"]
+    sectiuni = ["TREND & PERFORMANCE SIGNAL (use to pick a topic with proven current demand; NEVER copy a title):"]
     if proprii:
         lista = "\n".join(f"  - {t}" for t in proprii)
         sectiuni.append(
             "- Best-performing videos on THIS channel so far - lean HARD into the same kind of "
             f"subject/style, this is what already earns views here:\n{lista}"
         )
-    if trending:
-        lista = "\n".join(f"  - {t}" for t in trending)
+    if hot_nisa:
+        lista = "\n".join(f"  - {t}" for t in hot_nisa)
         sectiuni.append(
-            "- Currently trending on YouTube (general). If one can plausibly inspire a "
-            "mystery/untold-story/history/curiosity angle, use it; otherwise IGNORE it and pick "
-            f"an evergreen niche topic:\n{lista}"
+            "- Mystery/story topics getting LOTS of views on YouTube RIGHT NOW (last ~30 days). "
+            "Pick a SPECIFIC real subject in this spirit that has proven current demand, and give "
+            f"it a fresh original angle (do not copy any title):\n{lista}"
         )
     return "\n".join(sectiuni) + "\n"
 
