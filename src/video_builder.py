@@ -309,7 +309,11 @@ def construieste_video(
     grupate statice si imagini fara zoom (dar pastram tranzitiile + stock footage).
     """
     latime, inaltime = REZOLUTII[tip_video]
-    permite_stock = True  # footage real pentru toate temele (fallback pe imagine AI daca nu se gaseste)
+    # Footage real DOAR la video-urile lungi (long/top5). Shorts-urile folosesc
+    # exclusiv imagini AI - asa erau facute video-urile care au prins (100-981
+    # views); footage-ul stoc in shorts-urile de mister (uneori clipuri nepotrivite,
+    # ex: strazi moderne) parea sa strice retentia/distributia.
+    permite_stock = tip_video != "short"
     efecte_bogate = tip_video == "short"
     audio = AudioFileClip(cale_audio)
     durata_audio = audio.duration
